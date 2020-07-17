@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,14 @@
  *   This file includes definitions for handling UDP proxy commands.
  */
 
-#ifndef UDP_PROXY_HPP_
-#define UDP_PROXY_HPP_
+#ifndef OT_COMM_LIBRARY_UDP_PROXY_HPP_
+#define OT_COMM_LIBRARY_UDP_PROXY_HPP_
 
 #include <commissioner/error.hpp>
 
-#include <sys/time.h>
-
-#include <chrono>
-#include <functional>
-
-#include "coap_secure.hpp"
-#include "endpoint.hpp"
-#include <address.hpp>
+#include "common/address.hpp"
+#include "library/coap_secure.hpp"
+#include "library/endpoint.hpp"
 
 namespace ot {
 
@@ -61,7 +56,7 @@ public:
     }
     ~ProxyEndpoint() override = default;
 
-    Error    Send(const ByteArray &aBuf) override;
+    Error    Send(const ByteArray &aBuf, MessageSubType aSubType) override;
     Address  GetPeerAddr() const override { return mPeerAddr; }
     uint16_t GetPeerPort() const override { return mPeerPort; }
 
@@ -110,4 +105,4 @@ private:
 
 } // namespace ot
 
-#endif // UDP_PROXY_HPP_
+#endif // OT_COMM_LIBRARY_UDP_PROXY_HPP_

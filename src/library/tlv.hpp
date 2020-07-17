@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,15 @@
  *   This file includes definitions for Thread TLVs.
  */
 
-#ifndef TLV_HPP_
-#define TLV_HPP_
-
-#include <stdint.h>
+#ifndef OT_COMM_LIBRARY_TLV_HPP_
+#define OT_COMM_LIBRARY_TLV_HPP_
 
 #include <limits>
 #include <list>
 #include <map>
 #include <memory>
+
+#include <stdint.h>
 
 #include <commissioner/defines.hpp>
 #include <commissioner/error.hpp>
@@ -158,7 +158,7 @@ public:
     Tlv(Type aType, uint32_t aValue, Scope aScope = Scope::kMeshCoP);
     Tlv(Type aType, uint64_t aValue, Scope aScope = Scope::kMeshCoP);
 
-    Error         Serialize(ByteArray &aBuf) const;
+    void          Serialize(ByteArray &aBuf) const;
     static TlvPtr Deserialize(Error &aError, size_t &aOffset, const ByteArray &aBuf, Scope aScope = Scope::kMeshCoP);
 
     bool     IsValid() const;
@@ -192,4 +192,4 @@ bool   IsDatasetParameter(bool aIsActiveDataset, tlv::Type aTlvType);
 
 } // namespace ot
 
-#endif // TLV_HPP_
+#endif // OT_COMM_LIBRARY_TLV_HPP_

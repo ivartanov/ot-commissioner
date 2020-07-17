@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,10 @@
 
 #include <commissioner/network_data.hpp>
 
-#include "time.hpp"
-#include <address.hpp>
-#include <utils.hpp>
+#include "common/address.hpp"
+#include "common/error_macros.hpp"
+#include "common/time.hpp"
+#include "common/utils.hpp"
 
 namespace ot {
 
@@ -70,26 +71,26 @@ uint64_t Timestamp::Encode() const
 
 Error Ipv6PrefixFromString(ByteArray &aPrefix, const std::string &aStr)
 {
-    Error   error = Error::kNone;
+    Error   error;
     size_t  slash;
     size_t  prefixLength;
     Address addr;
 
     slash = aStr.find('/');
-    VerifyOrExit(slash != std::string::npos, error = Error::kInvalidArgs);
+    VerifyOrExit(slash != std::string::npos, error = ERROR_INVALID_ARGS("{} is not a valid IPv6 prefix", aStr));
 
     {
         char *endPtr = nullptr;
         prefixLength = strtoull(&aStr[slash + 1], &endPtr, 0);
-        VerifyOrExit(endPtr != nullptr && endPtr > &aStr[slash + 1], error = Error::kInvalidArgs);
-        VerifyOrExit(prefixLength <= 128, error = Error::kInvalidArgs);
+        VerifyOrExit(endPtr != nullptr && endPtr > &aStr[slash + 1],
+                     error = ERROR_INVALID_ARGS("{} is not a valid IPv6 prefix", aStr));
+        VerifyOrExit(prefixLength <= 128, error = ERROR_INVALID_ARGS("{} is not a valid IPv6 prefix", aStr));
         prefixLength /= 8;
     }
 
     SuccessOrExit(error = addr.Set(aStr.substr(0, slash)));
-    VerifyOrExit(addr.IsIpv6(), error = Error::kInvalidArgs);
+    VerifyOrExit(addr.IsIpv6(), error = ERROR_INVALID_ARGS("{} is not a valid IPv6 prefix", aStr));
 
-    error   = Error::kNone;
     aPrefix = addr.GetRaw();
     aPrefix.resize(prefixLength);
 
@@ -99,17 +100,15 @@ exit:
 
 std::string Ipv6PrefixToString(ByteArray aPrefix)
 {
-    ASSERT(aPrefix.size() <= 16);
+    VerifyOrDie(aPrefix.size() <= 16);
 
     auto prefixLength = aPrefix.size() * 8;
     aPrefix.resize(16);
 
     Address addr;
-    ASSERT(addr.Set(aPrefix) == Error::kNone);
+    SuccessOrDie(addr.Set(aPrefix));
 
-    std::string ret;
-    ASSERT(addr.ToString(ret) == Error::kNone);
-    return ret + "/" + std::to_string(prefixLength);
+    return addr.ToString() + "/" + std::to_string(prefixLength);
 }
 
 } // namespace commissioner

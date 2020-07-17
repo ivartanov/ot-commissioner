@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2019, The OpenThread Commissioner Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,8 @@
  * @note This file originates from the OpenThread implementation.
  */
 
-#ifndef CBOR_HPP_
-#define CBOR_HPP_
+#ifndef OT_COMM_LIBRARY_CBOR_HPP_
+#define OT_COMM_LIBRARY_CBOR_HPP_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -60,7 +60,7 @@ public:
     cn_cbor *      GetImpl() { return mCbor; }
     const cn_cbor *GetImpl() const { return mCbor; }
 
-    bool IsValid() const { return mCbor != NULL; }
+    bool IsValid() const { return mCbor != nullptr; }
 
     // This move the resource from src to dst, leaving the dst invalid.
     static void Move(CborValue &dst, CborValue &src);
@@ -106,4 +106,4 @@ public:
 
 } // namespace ot
 
-#endif // CBOR_HPP_
+#endif // OT_COMM_LIBRARY_CBOR_HPP_

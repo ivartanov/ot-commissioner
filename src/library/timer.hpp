@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,16 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TIMER_HPP_
-#define TIMER_HPP_
+#ifndef OT_COMM_LIBRARY_TIMER_HPP_
+#define OT_COMM_LIBRARY_TIMER_HPP_
 
 #include <functional>
 
 #include <commissioner/error.hpp>
 
-#include "event.hpp"
-#include "time.hpp"
-#include <utils.hpp>
+#include "common/time.hpp"
+#include "common/utils.hpp"
+#include "library/event.hpp"
 
 namespace ot {
 
@@ -54,7 +54,7 @@ public:
     {
         int flags = mIsSingle ? 0 : EV_PERSIST;
 
-        ASSERT(event_assign(&mTimerEvent, aEventBase, -1, flags, HandleEvent, this) == 0);
+        VerifyOrDie(event_assign(&mTimerEvent, aEventBase, -1, flags, HandleEvent, this) == 0);
     }
 
     ~Timer() { Stop(); }
@@ -74,7 +74,7 @@ public:
         tv.tv_sec  = delay.count() / 1000000;
         tv.tv_usec = delay.count() % 1000000;
 
-        ASSERT(event_add(&mTimerEvent, &tv) == 0);
+        VerifyOrDie(event_add(&mTimerEvent, &tv) == 0);
         mFireTime = aFireTime;
         mEnabled  = true;
     }
@@ -118,4 +118,4 @@ private:
 
 } // namespace ot
 
-#endif // TIMER_HPP_
+#endif // OT_COMM_LIBRARY_TIMER_HPP_

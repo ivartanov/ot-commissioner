@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2019, The OpenThread Commissioner Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,11 @@
  *   This file implements UDP proxy.
  */
 
-#include "udp_proxy.hpp"
+#include "library/udp_proxy.hpp"
 
-#include "commissioner_impl.hpp"
-#include "logging.hpp"
-#include "uri.hpp"
+#include "library/commissioner_impl.hpp"
+#include "library/logging.hpp"
+#include "library/uri.hpp"
 
 namespace ot {
 
@@ -44,15 +44,18 @@ namespace commissioner {
 /**
  * Encapsulate the request and send it as a UDP_TX.ntf message.
  */
-Error ProxyEndpoint::Send(const ByteArray &aRequest)
+Error ProxyEndpoint::Send(const ByteArray &aRequest, MessageSubType aSubType)
 {
-    Error         error = Error::kNone;
+    Error         error;
     coap::Request udpTx{coap::Type::kNonConfirmable, coap::Code::kPost};
     ByteArray     udpPayload;
 
-    ASSERT(GetPeerAddr().IsValid() && GetPeerAddr().IsIpv6());
+    (void)aSubType;
 
-    VerifyOrExit(mBrClient.IsConnected(), error = Error::kInvalidState);
+    VerifyOrExit(GetPeerAddr().IsValid() && GetPeerAddr().IsIpv6(),
+                 error = ERROR_INVALID_STATE("no valid IPv6 peer address"));
+
+    VerifyOrExit(mBrClient.IsConnected(), error = ERROR_INVALID_STATE("not connected to the border agent"));
 
     utils::Encode<uint16_t>(udpPayload, mBrClient.GetDtlsSession().GetLocalPort());
     utils::Encode<uint16_t>(udpPayload, GetPeerPort());
@@ -62,10 +65,13 @@ Error ProxyEndpoint::Send(const ByteArray &aRequest)
     SuccessOrExit(error = AppendTlv(udpTx, {tlv::Type::kIpv6Address, mPeerAddr.GetRaw()}));
     SuccessOrExit(error = AppendTlv(udpTx, {tlv::Type::kUdpEncapsulation, udpPayload}));
 
-    error = Error::kNone;
     mBrClient.SendRequest(udpTx, nullptr);
 
 exit:
+    if (error != ErrorCode::kNone)
+    {
+        error = Error{error.GetCode(), "sending UDP_TX.ntf message failed, " + error.GetMessage()};
+    }
     return error;
 }
 
@@ -74,7 +80,7 @@ void ProxyClient::SendRequest(const coap::Request & aRequest,
                               const Address &       aPeerAddr,
                               uint16_t              aPeerPort)
 {
-    ASSERT(aPeerAddr.IsValid() && aPeerAddr.IsIpv6());
+    VerifyOrDie(aPeerAddr.IsValid() && aPeerAddr.IsIpv6());
     mEndpoint.SetPeerAddr(aPeerAddr);
     mEndpoint.SetPeerPort(aPeerPort);
 
@@ -94,32 +100,31 @@ void ProxyClient::SendEmptyChanged(const coap::Request &aRequest)
  */
 void ProxyClient::HandleUdpRx(const coap::Request &aUdpRx)
 {
-    Error       error = Error::kNone;
+    Error       error;
     Address     peerAddr;
     uint16_t    peerPort;
     tlv::TlvPtr srcAddr  = nullptr;
     tlv::TlvPtr udpEncap = nullptr;
 
-    VerifyOrExit((srcAddr = GetTlv(tlv::Type::kIpv6Address, aUdpRx)) != nullptr, error = Error::kBadFormat);
-    VerifyOrExit(srcAddr->IsValid(), error = Error::kBadFormat);
-    VerifyOrExit((udpEncap = GetTlv(tlv::Type::kUdpEncapsulation, aUdpRx)) != nullptr, error = Error::kBadFormat);
-    VerifyOrExit(udpEncap->IsValid(), error = Error::kBadFormat);
+    VerifyOrExit((srcAddr = GetTlv(tlv::Type::kIpv6Address, aUdpRx)) != nullptr,
+                 error = ERROR_BAD_FORMAT("no valid IPv6 Address TLV found"));
+    VerifyOrExit((udpEncap = GetTlv(tlv::Type::kUdpEncapsulation, aUdpRx)) != nullptr,
+                 error = ERROR_BAD_FORMAT("no valid UDP Encapsulation TLV found"));
 
     SuccessOrExit(error = peerAddr.Set(srcAddr->GetValue()));
-    VerifyOrExit(peerAddr.IsIpv6(), error = Error::kBadFormat);
 
     peerPort = utils::Decode<uint16_t>(udpEncap->GetValue());
 
-    error = Error::kNone;
     mEndpoint.SetPeerAddr(peerAddr);
     mEndpoint.SetPeerPort(peerPort);
 
     mCoap.Receive({udpEncap->GetValue().begin() + 4, udpEncap->GetValue().end()});
 
 exit:
-    if (error != Error::kNone)
+    if (error != ErrorCode::kNone)
     {
-        LOG_WARN("handling a UDP_RX.ntf request failed: {}", ErrorToString(error));
+        LOG_WARN(LOG_REGION_COAP, "client(={}) handle UDP_RX.ntf request failed: {}", static_cast<void *>(this),
+                 error.ToString());
     }
     return;
 }

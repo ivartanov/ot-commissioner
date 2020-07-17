@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#   Copyright (c) 2019, The OpenThread Authors.
+#   Copyright (c) 2019, The OpenThread Commissioner Authors.
 #   All rights reserved.
 #
 #   Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,6 @@
 Thread 1.2 commissioner interface implementation
 """
 
-from abc import abstractmethod
 from future.utils import raise_
 
 import serial
@@ -43,7 +42,6 @@ import base64
 import logging
 import binascii
 import sys
-import os
 
 import commissioner
 

@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,122 +31,67 @@
  *   The file implements commissioner application.
  */
 
-#include "commissioner_app.hpp"
+#include "app/commissioner_app.hpp"
 
 #include <algorithm>
-#include <ctime>
-#include <fstream>
 
-#include "json.hpp"
-#include <address.hpp>
-#include <utils.hpp>
+#include "app/file_util.hpp"
+#include "app/json.hpp"
+#include "common/address.hpp"
+#include "common/error_macros.hpp"
+#include "common/utils.hpp"
 
 namespace ot {
 
 namespace commissioner {
 
-/**
- * The default commissioning handler that always accepts any joiner.
- *
- */
-static bool DefaultCommissioningHandler(const JoinerInfo & aJoinerInfo,
-                                        const std::string &aVendorName,
-                                        const std::string &aVendorModel,
-                                        const std::string &aVendorSwVersion,
-                                        const ByteArray &  aVendorStackVersion,
-                                        const std::string &aProvisioningUrl,
-                                        const ByteArray &  aVendorData)
+JoinerInfo::JoinerInfo(JoinerType aType, uint64_t aEui64, const std::string &aPSKd, const std::string &aProvisioningUrl)
+    : mType(aType)
+    , mEui64(aEui64)
+    , mPSKd(aPSKd)
+    , mProvisioningUrl(aProvisioningUrl)
 {
-    (void)aJoinerInfo;
-    (void)aVendorName;
-    (void)aVendorModel;
-    (void)aVendorSwVersion;
-    (void)aVendorStackVersion;
-    (void)aProvisioningUrl;
-    (void)aVendorData;
-
-    return true;
 }
 
-std::shared_ptr<CommissionerApp> CommissionerApp::Create(const std::string &aConfigFile)
+Error CommissionerApp::Create(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig)
 {
-    Error     error = Error::kNone;
-    AppConfig appConfig;
-    auto      app = std::shared_ptr<CommissionerApp>(new CommissionerApp());
+    Error error;
+    auto  app = std::shared_ptr<CommissionerApp>(new CommissionerApp());
 
-    SuccessOrExit(error = ReadConfig(appConfig, aConfigFile));
+    SuccessOrExit(error = app->Init(aConfig));
 
-    SuccessOrExit(error = app->Init(appConfig));
-
-exit:
-    return error == Error::kNone ? app : nullptr;
-}
-
-Error CommissionerApp::Init(const AppConfig &aAppConfig)
-{
-    Error                         error = Error::kNone;
-    Config                        config;
-    std::shared_ptr<Commissioner> commissioner = nullptr;
-
-    SuccessOrExit(error = MakeConfig(config, aAppConfig));
-
-    commissioner = Commissioner::Create(config, nullptr);
-    VerifyOrExit(commissioner != nullptr, error = Error::kInvalidArgs);
-    SuccessOrExit(error = commissioner->Start());
-
-    mCommissioner = commissioner;
-    mCommissioner->SetPanIdConflictHandler(
-        [this](const std::string *aPeerAddr, const ChannelMask *aChannelMask, const uint16_t *aPanId, Error aError) {
-            HandlePanIdConflict(aPeerAddr, aChannelMask, aPanId, aError);
-        });
-    mCommissioner->SetEnergyReportHandler(
-        [this](const std::string *aPeerAddr, const ChannelMask *aChannelMask, const ByteArray *aEnergyList,
-               Error aError) { HandleEnergyReport(aPeerAddr, aChannelMask, aEnergyList, aError); });
-    mCommissioner->SetDatasetChangedHandler([this](Error aError) { HandleDatasetChanged(aError); });
-    mCommissioner->SetJoinerInfoRequester(
-        [this](JoinerType aType, const ByteArray &aJoinerId) { return GetJoinerInfo(aType, aJoinerId); });
-
-    // This is the default behavior of OpenThread on-Mesh Commissioner.
-    mCommissioner->SetCommissioningHandler(DefaultCommissioningHandler);
+    aCommApp = app;
 
 exit:
     return error;
 }
 
-Error CommissionerApp::Discover()
+Error CommissionerApp::Init(const Config &aConfig)
 {
-    return mCommissioner->Discover(mBorderAgents);
-}
+    Error error;
 
-const std::list<BorderAgent> &CommissionerApp::GetBorderAgentList() const
-{
-    return mBorderAgents;
-}
+    mCommissioner = Commissioner::Create(*this);
+    VerifyOrExit(mCommissioner != nullptr, error = ERROR_OUT_OF_MEMORY("Commissioner::Create"));
+    SuccessOrExit(error = mCommissioner->Init(aConfig));
 
-const BorderAgent *CommissionerApp::GetBorderAgent(const std::string &aNetworkName)
-{
-    for (auto &ba : mBorderAgents)
-    {
-        if (aNetworkName.empty() || aNetworkName == ba.mNetworkName)
-        {
-            return &ba;
-        }
-    }
-    return nullptr;
+    mCommDataset = MakeDefaultCommissionerDataset();
+
+exit:
+    return error;
 }
 
 Error CommissionerApp::Start(std::string &      aExistingCommissionerId,
                              const std::string &aBorderAgentAddr,
                              uint16_t           aBorderAgentPort)
 {
-    Error error = Error::kNone;
+    Error error;
 
     // We need to report the already active commissioner ID if one exists.
     SuccessOrExit(error = mCommissioner->Petition(aExistingCommissionerId, aBorderAgentAddr, aBorderAgentPort));
-    SuccessOrExit(error = PullNetworkData());
+    SuccessOrExit(error = SyncNetworkData());
 
 exit:
-    if (error != Error::kNone)
+    if (error != ErrorCode::kNone && !IsActive())
     {
         Stop();
     }
@@ -156,6 +101,14 @@ exit:
 void CommissionerApp::Stop()
 {
     IgnoreError(mCommissioner->Resign());
+
+    mJoiners.clear();
+    mPanIdConflicts.clear();
+    mEnergyReports.clear();
+    mActiveDataset  = ActiveOperationalDataset();
+    mPendingDataset = PendingOperationalDataset();
+    mCommDataset    = MakeDefaultCommissionerDataset();
+    mBbrDataset     = BbrDataset();
 }
 
 void CommissionerApp::AbortRequests()
@@ -175,7 +128,7 @@ bool CommissionerApp::IsCcmMode() const
 
 Error CommissionerApp::SaveNetworkData(const std::string &aFilename)
 {
-    Error       error = Error::kNone;
+    Error       error;
     NetworkData networkData;
 
     networkData.mActiveDataset  = mActiveDataset;
@@ -190,15 +143,14 @@ exit:
     return error;
 }
 
-Error CommissionerApp::PullNetworkData()
+Error CommissionerApp::SyncNetworkData(void)
 {
-    Error                     error = Error::kNone;
-    CommissionerDataset       commDataset;
+    Error                     error;
     ActiveOperationalDataset  activeDataset;
     PendingOperationalDataset pendingDataset;
     BbrDataset                bbrDataset;
 
-    SuccessOrExit(error = mCommissioner->GetCommissionerDataset(commDataset, 0xFFFF));
+    SuccessOrExit(error = mCommissioner->SetCommissionerDataset(mCommDataset));
     if (IsCcmMode())
     {
         SuccessOrExit(error = mCommissioner->GetBbrDataset(bbrDataset, 0xFFFF));
@@ -207,7 +159,6 @@ Error CommissionerApp::PullNetworkData()
     SuccessOrExit(error = mCommissioner->GetActiveDataset(activeDataset, 0xFFFF));
     SuccessOrExit(error = mCommissioner->GetPendingDataset(pendingDataset, 0xFFFF));
 
-    MergeDataset(mCommDataset, commDataset);
     if (IsCcmMode())
     {
         mBbrDataset = bbrDataset;
@@ -221,9 +172,9 @@ exit:
 
 Error CommissionerApp::GetSessionId(uint16_t &aSessionId) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     aSessionId = mCommissioner->GetSessionId();
 
@@ -233,12 +184,12 @@ exit:
 
 Error CommissionerApp::GetBorderAgentLocator(uint16_t &aLocator) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     // We must have Border Agent Locator in commissioner dataset.
-    ASSERT(mCommDataset.mPresentFlags & CommissionerDataset::kBorderAgentLocatorBit);
+    VerifyOrDie(mCommDataset.mPresentFlags & CommissionerDataset::kBorderAgentLocatorBit);
 
     aLocator = mCommDataset.mBorderAgentLocator;
 
@@ -248,25 +199,27 @@ exit:
 
 Error CommissionerApp::GetSteeringData(ByteArray &aSteeringData, JoinerType aJoinerType) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     switch (aJoinerType)
     {
     case JoinerType::kMeshCoP:
-        VerifyOrExit((mCommDataset.mPresentFlags & CommissionerDataset::kSteeringDataBit), error = Error::kNotFound);
+        VerifyOrExit((mCommDataset.mPresentFlags & CommissionerDataset::kSteeringDataBit),
+                     error = ERROR_NOT_FOUND("cannot find Thread 1.1 joiner Steering Data"));
         aSteeringData = mCommDataset.mSteeringData;
         break;
 
     case JoinerType::kAE:
-        VerifyOrExit((mCommDataset.mPresentFlags & CommissionerDataset::kAeSteeringDataBit), error = Error::kNotFound);
+        VerifyOrExit((mCommDataset.mPresentFlags & CommissionerDataset::kAeSteeringDataBit),
+                     error = ERROR_NOT_FOUND("cannot find Thread CCM AE Steering Data"));
         aSteeringData = mCommDataset.mAeSteeringData;
         break;
 
     case JoinerType::kNMKP:
         VerifyOrExit((mCommDataset.mPresentFlags & CommissionerDataset::kNmkpSteeringDataBit),
-                     error = Error::kNotFound);
+                     error = ERROR_NOT_FOUND("cannot find CCM NMKP Steering Data"));
         aSteeringData = mCommDataset.mNmkpSteeringData;
         break;
     }
@@ -277,24 +230,27 @@ exit:
 
 Error CommissionerApp::EnableJoiner(JoinerType         aType,
                                     uint64_t           aEui64,
-                                    const ByteArray &  aPSKd,
+                                    const std::string &aPSKd,
                                     const std::string &aProvisioningUrl)
 {
-    Error error       = Error::kNone;
+    Error error;
     auto  joinerId    = Commissioner::ComputeJoinerId(aEui64);
     auto  commDataset = mCommDataset;
     commDataset.mPresentFlags &= ~CommissionerDataset::kSessionIdBit;
     commDataset.mPresentFlags &= ~CommissionerDataset::kBorderAgentLocatorBit;
     auto &steeringData = GetSteeringData(commDataset, aType);
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    SuccessOrExit(error = ValidatePSKd(aPSKd));
 
-    VerifyOrExit(mJoiners.count({aType, joinerId}) == 0, error = Error::kAlready);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+
+    VerifyOrExit(mJoiners.count({aType, joinerId}) == 0,
+                 error = ERROR_ALREADY_EXISTS("joiner(type={}, EUI64={:X}) has already been enabled",
+                                              utils::to_underlying(aType), aEui64));
 
     Commissioner::AddJoiner(steeringData, joinerId);
     SuccessOrExit(error = mCommissioner->SetCommissionerDataset(commDataset));
 
-    error = Error::kNone;
     MergeDataset(mCommDataset, commDataset);
     mJoiners.emplace(JoinerKey{aType, joinerId}, JoinerInfo{aType, aEui64, aPSKd, aProvisioningUrl});
 
@@ -304,14 +260,14 @@ exit:
 
 Error CommissionerApp::DisableJoiner(JoinerType aType, uint64_t aEui64)
 {
-    Error     error = Error::kNone;
+    Error     error;
     ByteArray joinerId;
     auto      commDataset = mCommDataset;
     commDataset.mPresentFlags &= ~CommissionerDataset::kSessionIdBit;
     commDataset.mPresentFlags &= ~CommissionerDataset::kBorderAgentLocatorBit;
     auto &steeringData = GetSteeringData(commDataset, aType);
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     steeringData = {0x00};
     for (const auto &kv : mJoiners)
@@ -327,7 +283,6 @@ Error CommissionerApp::DisableJoiner(JoinerType aType, uint64_t aEui64)
 
     SuccessOrExit(error = mCommissioner->SetCommissionerDataset(commDataset));
 
-    error = Error::kNone;
     MergeDataset(mCommDataset, commDataset);
     mJoiners.erase(JoinerKey{aType, joinerId});
 
@@ -335,22 +290,22 @@ exit:
     return error;
 }
 
-Error CommissionerApp::EnableAllJoiners(JoinerType aType, const ByteArray &aPSKd, const std::string &aProvisioningUrl)
+Error CommissionerApp::EnableAllJoiners(JoinerType aType, const std::string &aPSKd, const std::string &aProvisioningUrl)
 {
-    Error     error = Error::kNone;
+    Error     error;
     ByteArray joinerId;
     auto      commDataset = mCommDataset;
     commDataset.mPresentFlags &= ~CommissionerDataset::kSessionIdBit;
     commDataset.mPresentFlags &= ~CommissionerDataset::kBorderAgentLocatorBit;
     auto &steeringData = GetSteeringData(commDataset, aType);
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    SuccessOrExit(error = ValidatePSKd(aPSKd));
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     // Set steering data to all 1 to enable all joiners.
     steeringData = {0xFF};
     SuccessOrExit(error = mCommissioner->SetCommissionerDataset(commDataset));
 
-    error = Error::kNone;
     MergeDataset(mCommDataset, commDataset);
 
     EraseAllJoiners(aType);
@@ -363,19 +318,18 @@ exit:
 
 Error CommissionerApp::DisableAllJoiners(JoinerType aType)
 {
-    Error error       = Error::kNone;
+    Error error;
     auto  commDataset = mCommDataset;
     commDataset.mPresentFlags &= ~CommissionerDataset::kSessionIdBit;
     commDataset.mPresentFlags &= ~CommissionerDataset::kBorderAgentLocatorBit;
     auto &steeringData = GetSteeringData(commDataset, aType);
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     // Set steering data to all 0 to disable all joiners.
     steeringData = {0x00};
     SuccessOrExit(error = mCommissioner->SetCommissionerDataset(commDataset));
 
-    error = Error::kNone;
     MergeDataset(mCommDataset, commDataset);
     EraseAllJoiners(aType);
 
@@ -383,38 +337,29 @@ exit:
     return error;
 }
 
-bool CommissionerApp::IsJoinerCommissioned(JoinerType aType, uint64_t aEui64)
-{
-    // This doesn't work for CCM joiners, since CCM joiners are not
-    // commissioned by the commissioner.
-    auto joiner = mJoiners.find(JoinerKey{aType, Commissioner::ComputeJoinerId(aEui64)});
-    if (joiner == mJoiners.end())
-    {
-        return false;
-    }
-    return joiner->second.mIsCommissioned;
-}
-
 Error CommissionerApp::GetJoinerUdpPort(uint16_t &aJoinerUdpPort, JoinerType aJoinerType) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     switch (aJoinerType)
     {
     case JoinerType::kMeshCoP:
-        VerifyOrExit(mCommDataset.mPresentFlags & CommissionerDataset::kJoinerUdpPortBit, error = Error::kNotFound);
+        VerifyOrExit(mCommDataset.mPresentFlags & CommissionerDataset::kJoinerUdpPortBit,
+                     error = ERROR_NOT_FOUND("cannot find Thread 1.1 Joiner UDP Port"));
         aJoinerUdpPort = mCommDataset.mJoinerUdpPort;
         break;
 
     case JoinerType::kAE:
-        VerifyOrExit(mCommDataset.mPresentFlags & CommissionerDataset::kAeUdpPortBit, error = Error::kNotFound);
+        VerifyOrExit(mCommDataset.mPresentFlags & CommissionerDataset::kAeUdpPortBit,
+                     error = ERROR_NOT_FOUND("cannot find Thread CCM AE UDP Port"));
         aJoinerUdpPort = mCommDataset.mAeUdpPort;
         break;
 
     case JoinerType::kNMKP:
-        VerifyOrExit(mCommDataset.mPresentFlags & CommissionerDataset::kNmkpUdpPortBit, error = Error::kNotFound);
+        VerifyOrExit(mCommDataset.mPresentFlags & CommissionerDataset::kNmkpUdpPortBit,
+                     error = ERROR_NOT_FOUND("cannot find Thread CCM NMKP Port"));
         aJoinerUdpPort = mCommDataset.mNmkpUdpPort;
         break;
     }
@@ -425,18 +370,17 @@ exit:
 
 Error CommissionerApp::SetJoinerUdpPort(JoinerType aType, uint16_t aUdpPort)
 {
-    Error error       = Error::kNone;
+    Error error;
     auto  commDataset = mCommDataset;
     commDataset.mPresentFlags &= ~CommissionerDataset::kSessionIdBit;
     commDataset.mPresentFlags &= ~CommissionerDataset::kBorderAgentLocatorBit;
     auto &joinerUdpPort = GetJoinerUdpPort(commDataset, aType);
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     joinerUdpPort = aUdpPort;
     SuccessOrExit(error = mCommissioner->SetCommissionerDataset(commDataset));
 
-    error = Error::kNone;
     MergeDataset(mCommDataset, commDataset);
 
 exit:
@@ -464,11 +408,11 @@ exit:
 
 Error CommissionerApp::GetActiveTimestamp(Timestamp &aTimestamp) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    ASSERT(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kActiveTimestampBit);
+    VerifyOrDie(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kActiveTimestampBit);
     aTimestamp = mActiveDataset.mActiveTimestamp;
 
 exit:
@@ -477,9 +421,9 @@ exit:
 
 Error CommissionerApp::GetChannel(Channel &aChannel)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     // Since channel will be updated by pending operational after a delay time,
     // we need to pull the active operational dataset.
@@ -487,7 +431,7 @@ Error CommissionerApp::GetChannel(Channel &aChannel)
     // TODO(wgtdkp): should we send MGMT_ACTIVE_GET.req for all GetXXX APIs ?
     SuccessOrExit(error = mCommissioner->GetActiveDataset(mActiveDataset, 0xFFFF));
 
-    ASSERT(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kChannelBit);
+    VerifyOrDie(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kChannelBit);
 
     aChannel = mActiveDataset.mChannel;
 
@@ -497,10 +441,10 @@ exit:
 
 Error CommissionerApp::SetChannel(const Channel &aChannel, MilliSeconds aDelay)
 {
-    Error                     error = Error::kNone;
+    Error                     error;
     PendingOperationalDataset pendingDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     pendingDataset.mChannel = aChannel;
     pendingDataset.mPresentFlags |= PendingOperationalDataset::kChannelBit;
@@ -510,7 +454,6 @@ Error CommissionerApp::SetChannel(const Channel &aChannel, MilliSeconds aDelay)
 
     SuccessOrExit(error = mCommissioner->SetPendingDataset(pendingDataset));
 
-    error = Error::kNone;
     MergeDataset(mPendingDataset, pendingDataset);
 
 exit:
@@ -519,11 +462,12 @@ exit:
 
 Error CommissionerApp::GetChannelMask(ChannelMask &aChannelMask) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kChannelMaskBit, error = Error::kNotFound);
+    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kChannelMaskBit,
+                 error = ERROR_NOT_FOUND("cannot find valid Channel Masks in Active Operational Dataset"));
     aChannelMask = mActiveDataset.mChannelMask;
 
 exit:
@@ -532,17 +476,16 @@ exit:
 
 Error CommissionerApp::SetChannelMask(const ChannelMask &aChannelMask)
 {
-    Error                    error = Error::kNone;
+    Error                    error;
     ActiveOperationalDataset activeDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     activeDataset.mChannelMask = aChannelMask;
     activeDataset.mPresentFlags |= ActiveOperationalDataset::kChannelMaskBit;
 
     SuccessOrExit(error = mCommissioner->SetActiveDataset(activeDataset));
 
-    error = Error::kNone;
     MergeDataset(mActiveDataset, activeDataset);
 
 exit:
@@ -551,11 +494,12 @@ exit:
 
 Error CommissionerApp::GetExtendedPanId(ByteArray &aExtendedPanId) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kExtendedPanIdBit, error = Error::kNotFound);
+    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kExtendedPanIdBit,
+                 error = ERROR_NOT_FOUND("cannot find valid Extended PAN ID in Active Operational Dataset"));
     aExtendedPanId = mActiveDataset.mExtendedPanId;
 
 exit:
@@ -564,17 +508,16 @@ exit:
 
 Error CommissionerApp::SetExtendedPanId(const ByteArray &aExtendedPanId)
 {
-    Error                    error = Error::kNone;
+    Error                    error;
     ActiveOperationalDataset activeDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     activeDataset.mExtendedPanId = aExtendedPanId;
     activeDataset.mPresentFlags |= ActiveOperationalDataset::kExtendedPanIdBit;
 
     SuccessOrExit(error = mCommissioner->SetActiveDataset(activeDataset));
 
-    error = Error::kNone;
     MergeDataset(mActiveDataset, activeDataset);
 
 exit:
@@ -583,14 +526,14 @@ exit:
 
 Error CommissionerApp::GetMeshLocalPrefix(std::string &aPrefix)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     SuccessOrExit(error = mCommissioner->GetActiveDataset(mActiveDataset, 0xFFFF));
 
     VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kMeshLocalPrefixBit,
-                 error = Error::kNotFound);
+                 error = ERROR_NOT_FOUND("cannot find valid Mesh-local Prefix in Active Operational Dataset"));
     aPrefix = Ipv6PrefixToString(mActiveDataset.mMeshLocalPrefix);
 
 exit:
@@ -599,10 +542,10 @@ exit:
 
 Error CommissionerApp::SetMeshLocalPrefix(const std::string &aPrefix, MilliSeconds aDelay)
 {
-    Error                     error = Error::kNone;
+    Error                     error;
     PendingOperationalDataset pendingDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     SuccessOrExit(error = Ipv6PrefixFromString(pendingDataset.mMeshLocalPrefix, aPrefix));
     pendingDataset.mPresentFlags |= PendingOperationalDataset::kMeshLocalPrefixBit;
@@ -612,7 +555,6 @@ Error CommissionerApp::SetMeshLocalPrefix(const std::string &aPrefix, MilliSecon
 
     SuccessOrExit(error = mCommissioner->SetPendingDataset(pendingDataset));
 
-    error = Error::kNone;
     MergeDataset(mPendingDataset, pendingDataset);
 
 exit:
@@ -621,14 +563,15 @@ exit:
 
 Error CommissionerApp::GetNetworkMasterKey(ByteArray &aMasterKey)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    ;
 
     SuccessOrExit(error = mCommissioner->GetActiveDataset(mActiveDataset, 0xFFFF));
 
     VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kNetworkMasterKeyBit,
-                 error = Error::kNotFound);
+                 error = ERROR_NOT_FOUND("cannot find valid Network Master Key in Active Operational Dataset"));
     aMasterKey = mActiveDataset.mNetworkMasterKey;
 
 exit:
@@ -637,10 +580,10 @@ exit:
 
 Error CommissionerApp::SetNetworkMasterKey(const ByteArray &aMasterKey, MilliSeconds aDelay)
 {
-    Error                     error = Error::kNone;
+    Error                     error;
     PendingOperationalDataset pendingDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     pendingDataset.mNetworkMasterKey = aMasterKey;
     pendingDataset.mPresentFlags |= PendingOperationalDataset::kNetworkMasterKeyBit;
@@ -650,7 +593,6 @@ Error CommissionerApp::SetNetworkMasterKey(const ByteArray &aMasterKey, MilliSec
 
     SuccessOrExit(error = mCommissioner->SetPendingDataset(pendingDataset));
 
-    error = Error::kNone;
     MergeDataset(mPendingDataset, pendingDataset);
 
 exit:
@@ -659,11 +601,12 @@ exit:
 
 Error CommissionerApp::GetNetworkName(std::string &aNetworkName) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kNetworkNameBit, error = Error::kNotFound);
+    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kNetworkNameBit,
+                 error = ERROR_NOT_FOUND("cannot find valid Network Name in Active Operational Dataset"));
     aNetworkName = mActiveDataset.mNetworkName;
 
 exit:
@@ -672,17 +615,16 @@ exit:
 
 Error CommissionerApp::SetNetworkName(const std::string &aNetworkName)
 {
-    Error                    error = Error::kNone;
+    Error                    error;
     ActiveOperationalDataset activeDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     activeDataset.mNetworkName = aNetworkName;
     activeDataset.mPresentFlags |= ActiveOperationalDataset::kNetworkNameBit;
 
     SuccessOrExit(error = mCommissioner->SetActiveDataset(activeDataset));
 
-    error = Error::kNone;
     MergeDataset(mActiveDataset, activeDataset);
 
 exit:
@@ -691,13 +633,14 @@ exit:
 
 Error CommissionerApp::GetPanId(uint16_t &aPanId)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     SuccessOrExit(error = mCommissioner->GetActiveDataset(mActiveDataset, 0xFFFF));
 
-    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kPanIdBit, error = Error::kNotFound);
+    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kPanIdBit,
+                 error = ERROR_NOT_FOUND("cannot find valid PAN ID in Active Operational Dataset"));
     aPanId = mActiveDataset.mPanId;
 
 exit:
@@ -706,10 +649,10 @@ exit:
 
 Error CommissionerApp::SetPanId(uint16_t aPanId, MilliSeconds aDelay)
 {
-    Error                     error = Error::kNone;
+    Error                     error;
     PendingOperationalDataset pendingDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     pendingDataset.mPanId = aPanId;
     pendingDataset.mPresentFlags |= PendingOperationalDataset::kPanIdBit;
@@ -719,7 +662,6 @@ Error CommissionerApp::SetPanId(uint16_t aPanId, MilliSeconds aDelay)
 
     SuccessOrExit(error = mCommissioner->SetPendingDataset(pendingDataset));
 
-    error = Error::kNone;
     MergeDataset(mPendingDataset, pendingDataset);
 
 exit:
@@ -728,11 +670,12 @@ exit:
 
 Error CommissionerApp::GetPSKc(ByteArray &aPSKc) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kPSKcBit, error = Error::kNotFound);
+    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kPSKcBit,
+                 error = ERROR_NOT_FOUND("cannot find valid PSKc in Active Operational Dataset"));
     aPSKc = mActiveDataset.mPSKc;
 
 exit:
@@ -741,17 +684,16 @@ exit:
 
 Error CommissionerApp::SetPSKc(const ByteArray &aPSKc)
 {
-    Error                    error = Error::kNone;
+    Error                    error;
     ActiveOperationalDataset activeDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     activeDataset.mPSKc = aPSKc;
     activeDataset.mPresentFlags |= ActiveOperationalDataset::kPSKcBit;
 
     SuccessOrExit(error = mCommissioner->SetActiveDataset(activeDataset));
 
-    error = Error::kNone;
     MergeDataset(mActiveDataset, activeDataset);
 
 exit:
@@ -760,11 +702,12 @@ exit:
 
 Error CommissionerApp::GetSecurityPolicy(SecurityPolicy &aSecurityPolicy) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kSecurityPolicyBit, error = Error::kNotFound);
+    VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kSecurityPolicyBit,
+                 error = ERROR_NOT_FOUND("cannot find valid Security Policy in Active Operational Dataset"));
     aSecurityPolicy = mActiveDataset.mSecurityPolicy;
 
 exit:
@@ -773,17 +716,16 @@ exit:
 
 Error CommissionerApp::SetSecurityPolicy(const SecurityPolicy &aSecurityPolicy)
 {
-    Error                    error = Error::kNone;
+    Error                    error;
     ActiveOperationalDataset activeDataset;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     activeDataset.mSecurityPolicy = aSecurityPolicy;
     activeDataset.mPresentFlags |= ActiveOperationalDataset::kSecurityPolicyBit;
 
     SuccessOrExit(error = mCommissioner->SetActiveDataset(activeDataset));
 
-    error = Error::kNone;
     MergeDataset(mActiveDataset, activeDataset);
 
 exit:
@@ -836,11 +778,13 @@ exit:
 
 Error CommissionerApp::GetTriHostname(std::string &aHostname) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
 
-    VerifyOrExit(mBbrDataset.mPresentFlags & BbrDataset::kTriHostnameBit, error = Error::kNotFound);
+    VerifyOrExit(mBbrDataset.mPresentFlags & BbrDataset::kTriHostnameBit,
+                 error = ERROR_NOT_FOUND("cannot find valid TRI Hostname in BBR Dataset"));
     aHostname = mBbrDataset.mTriHostname;
 
 exit:
@@ -849,17 +793,17 @@ exit:
 
 Error CommissionerApp::SetTriHostname(const std::string &aHostname)
 {
-    Error      error = Error::kNone;
+    Error      error;
     BbrDataset bbrDataset;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
 
     bbrDataset.mTriHostname = aHostname;
     bbrDataset.mPresentFlags |= BbrDataset::kTriHostnameBit;
 
     SuccessOrExit(error = mCommissioner->SetBbrDataset(bbrDataset));
 
-    error = Error::kNone;
     MergeDataset(mBbrDataset, bbrDataset);
 
 exit:
@@ -868,11 +812,13 @@ exit:
 
 Error CommissionerApp::GetRegistrarHostname(std::string &aHostname) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
 
-    VerifyOrExit(mBbrDataset.mPresentFlags & BbrDataset::kRegistrarHostnameBit, error = Error::kNotFound);
+    VerifyOrExit(mBbrDataset.mPresentFlags & BbrDataset::kRegistrarHostnameBit,
+                 error = ERROR_NOT_FOUND("cannot find valid Registrar Hostname in BBR Dataset"));
     aHostname = mBbrDataset.mRegistrarHostname;
 
 exit:
@@ -881,17 +827,17 @@ exit:
 
 Error CommissionerApp::SetRegistrarHostname(const std::string &aHostname)
 {
-    Error      error = Error::kNone;
+    Error      error;
     BbrDataset bbrDataset;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
 
     bbrDataset.mRegistrarHostname = aHostname;
     bbrDataset.mPresentFlags |= BbrDataset::kRegistrarHostnameBit;
 
     SuccessOrExit(error = mCommissioner->SetBbrDataset(bbrDataset));
 
-    error = Error::kNone;
     MergeDataset(mBbrDataset, bbrDataset);
 
 exit:
@@ -900,11 +846,13 @@ exit:
 
 Error CommissionerApp::GetRegistrarIpv6Addr(std::string &aIpv6Addr) const
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
 
-    VerifyOrExit(mBbrDataset.mPresentFlags & BbrDataset::kRegistrarIpv6AddrBit, error = Error::kNotFound);
+    VerifyOrExit(mBbrDataset.mPresentFlags & BbrDataset::kRegistrarIpv6AddrBit,
+                 error = ERROR_NOT_FOUND("cannot find valid Registrar IPv6 Address in BBR Dataset"));
     aIpv6Addr = mBbrDataset.mRegistrarIpv6Addr;
 
 exit:
@@ -935,9 +883,11 @@ exit:
 
 Error CommissionerApp::Reenroll(const std::string &aDstAddr)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
+
     SuccessOrExit(error = mCommissioner->CommandReenroll(aDstAddr));
 
 exit:
@@ -946,9 +896,11 @@ exit:
 
 Error CommissionerApp::DomainReset(const std::string &aDstAddr)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
+
     SuccessOrExit(error = mCommissioner->CommandDomainReset(aDstAddr));
 
 exit:
@@ -957,9 +909,11 @@ exit:
 
 Error CommissionerApp::Migrate(const std::string &aDstAddr, const std::string &aDesignatedNetwork)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive() && IsCcmMode(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+    VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
+
     SuccessOrExit(error = mCommissioner->CommandMigrate(aDstAddr, aDesignatedNetwork));
 
 exit:
@@ -968,15 +922,17 @@ exit:
 
 Error CommissionerApp::RegisterMulticastListener(const std::vector<std::string> &aMulticastAddrList, Seconds aTimeout)
 {
-    Error       error = Error::kNone;
+    Error       error;
     std::string pbbrAddr;
     uint8_t     status;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+
     SuccessOrExit(error = GetPrimaryBbrAddr(pbbrAddr));
     SuccessOrExit(error =
                       mCommissioner->RegisterMulticastListener(status, pbbrAddr, aMulticastAddrList, aTimeout.count()));
-    VerifyOrExit(status == kMlrStatusSuccess, error = Error::kFailed);
+    VerifyOrExit(status == kMlrStatusSuccess,
+                 error = ERROR_REJECTED("request was rejected with statusCode={}", status));
 
 exit:
     return error;
@@ -987,9 +943,10 @@ Error CommissionerApp::AnnounceBegin(uint32_t           aChannelMask,
                                      MilliSeconds       aPeriod,
                                      const std::string &aDtsAddr)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+
     SuccessOrExit(error = mCommissioner->AnnounceBegin(aChannelMask, aCount, aPeriod.count(), aDtsAddr));
 
 exit:
@@ -998,9 +955,10 @@ exit:
 
 Error CommissionerApp::PanIdQuery(uint32_t aChannelMask, uint16_t aPanId, const std::string &aDstAddr)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+
     SuccessOrExit(error = mCommissioner->PanIdQuery(aChannelMask, aPanId, aDstAddr));
 
 exit:
@@ -1018,9 +976,10 @@ Error CommissionerApp::EnergyScan(uint32_t           aChannelMask,
                                   uint16_t           aScanDuration,
                                   const std::string &aDstAddr)
 {
-    Error error = Error::kNone;
+    Error error;
 
-    VerifyOrExit(IsActive(), error = Error::kInvalidState);
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
+
     SuccessOrExit(error = mCommissioner->EnergyScan(aChannelMask, aCount, aPeriod, aScanDuration, aDstAddr));
 
 exit:
@@ -1049,7 +1008,7 @@ const std::string &CommissionerApp::GetDomainName() const
 
 Error CommissionerApp::GetPrimaryBbrAddr(std::string &aAddr)
 {
-    Error       error = Error::kNone;
+    Error       error;
     std::string meshLocalPrefix;
 
     SuccessOrExit(error = GetMeshLocalPrefix(meshLocalPrefix));
@@ -1071,17 +1030,37 @@ Error CommissionerApp::RequestToken(const std::string &aAddr, uint16_t aPort)
 
 Error CommissionerApp::SetToken(const ByteArray &aSignedToken, const ByteArray &aSignerCert)
 {
-    Error error = mCommissioner->SetToken(aSignedToken, aSignerCert);
-    if (error == Error::kNone)
-    {
-        mSignedToken = aSignedToken;
-    }
+    Error error;
+
+    SuccessOrExit(error = mCommissioner->SetToken(aSignedToken, aSignerCert));
+
+    mSignedToken = aSignedToken;
+
+exit:
     return error;
 }
 
 bool CommissionerApp::JoinerKey::operator<(const JoinerKey &aOther) const
 {
     return mType < aOther.mType || (mType == aOther.mType && mId < aOther.mId);
+}
+
+CommissionerDataset CommissionerApp::MakeDefaultCommissionerDataset()
+{
+    CommissionerDataset dataset;
+
+    dataset.mJoinerUdpPort = kDefaultJoinerUdpPort;
+    dataset.mPresentFlags |= CommissionerDataset::kJoinerUdpPortBit;
+
+    if (IsCcmMode())
+    {
+        dataset.mAeUdpPort = kDefaultAeUdpPort;
+        dataset.mPresentFlags |= CommissionerDataset::kAeUdpPortBit;
+        dataset.mNmkpUdpPort = kDefaultNmkpUdpPort;
+        dataset.mPresentFlags |= CommissionerDataset::kNmkpUdpPortBit;
+    }
+
+    return dataset;
 }
 
 ByteArray &CommissionerApp::GetSteeringData(CommissionerDataset &aDataset, JoinerType aJoinerType)
@@ -1101,7 +1080,7 @@ ByteArray &CommissionerApp::GetSteeringData(CommissionerDataset &aDataset, Joine
         return aDataset.mNmkpSteeringData;
 
     default:
-        ASSERT(false);
+        VerifyOrDie(false);
         aDataset.mPresentFlags |= CommissionerDataset::kSteeringDataBit;
         return aDataset.mSteeringData;
     }
@@ -1124,7 +1103,7 @@ uint16_t &CommissionerApp::GetJoinerUdpPort(CommissionerDataset &aDataset, Joine
         return aDataset.mNmkpUdpPort;
 
     default:
-        ASSERT(false);
+        VerifyOrDie(false);
         aDataset.mPresentFlags |= CommissionerDataset::kJoinerUdpPortBit;
         return aDataset.mJoinerUdpPort;
     }
@@ -1151,76 +1130,76 @@ size_t CommissionerApp::EraseAllJoiners(JoinerType aJoinerType)
 
 void CommissionerApp::MergeDataset(ActiveOperationalDataset &aDst, const ActiveOperationalDataset &aSrc)
 {
-#define TEST_AND_SET(name)                                            \
+#define SET_IF_PRESENT(name)                                          \
     if (aSrc.mPresentFlags & ActiveOperationalDataset::k##name##Bit)  \
     {                                                                 \
         aDst.m##name = aSrc.m##name;                                  \
         aDst.mPresentFlags |= ActiveOperationalDataset::k##name##Bit; \
     }
 
-    TEST_AND_SET(ActiveTimestamp);
-    TEST_AND_SET(Channel);
-    TEST_AND_SET(ChannelMask);
-    TEST_AND_SET(ExtendedPanId);
-    TEST_AND_SET(MeshLocalPrefix);
-    TEST_AND_SET(NetworkMasterKey);
-    TEST_AND_SET(NetworkName);
-    TEST_AND_SET(PanId);
-    TEST_AND_SET(PSKc);
-    TEST_AND_SET(SecurityPolicy);
+    SET_IF_PRESENT(ActiveTimestamp);
+    SET_IF_PRESENT(Channel);
+    SET_IF_PRESENT(ChannelMask);
+    SET_IF_PRESENT(ExtendedPanId);
+    SET_IF_PRESENT(MeshLocalPrefix);
+    SET_IF_PRESENT(NetworkMasterKey);
+    SET_IF_PRESENT(NetworkName);
+    SET_IF_PRESENT(PanId);
+    SET_IF_PRESENT(PSKc);
+    SET_IF_PRESENT(SecurityPolicy);
 
-#undef TEST_AND_SET
+#undef SET_IF_PRESENT
 }
 
 void CommissionerApp::MergeDataset(PendingOperationalDataset &aDst, const PendingOperationalDataset &aSrc)
 {
     MergeDataset(static_cast<ActiveOperationalDataset &>(aDst), static_cast<const ActiveOperationalDataset &>(aSrc));
 
-#define TEST_AND_SET(name)                                             \
+#define SET_IF_PRESENT(name)                                           \
     if (aSrc.mPresentFlags & PendingOperationalDataset::k##name##Bit)  \
     {                                                                  \
         aDst.m##name = aSrc.m##name;                                   \
         aDst.mPresentFlags |= PendingOperationalDataset::k##name##Bit; \
     }
 
-    TEST_AND_SET(PendingTimestamp);
-    TEST_AND_SET(DelayTimer);
+    SET_IF_PRESENT(PendingTimestamp);
+    SET_IF_PRESENT(DelayTimer);
 
-#undef TEST_AND_SET
+#undef SET_IF_PRESENT
 }
 
 void CommissionerApp::MergeDataset(BbrDataset &aDst, const BbrDataset &aSrc)
 {
-#define TEST_AND_SET(name)                              \
+#define SET_IF_PRESENT(name)                            \
     if (aSrc.mPresentFlags & BbrDataset::k##name##Bit)  \
     {                                                   \
         aDst.m##name = aSrc.m##name;                    \
         aDst.mPresentFlags |= BbrDataset::k##name##Bit; \
     }
 
-    TEST_AND_SET(TriHostname);
-    TEST_AND_SET(RegistrarHostname);
-    TEST_AND_SET(RegistrarIpv6Addr);
+    SET_IF_PRESENT(TriHostname);
+    SET_IF_PRESENT(RegistrarHostname);
+    SET_IF_PRESENT(RegistrarIpv6Addr);
 
-#undef TEST_AND_SET
+#undef SET_IF_PRESENT
 }
 
 // Remove dst dataset's steering data and joiner UDP port
 // if they are not presented in the src dataset.
 void CommissionerApp::MergeDataset(CommissionerDataset &aDst, const CommissionerDataset &aSrc)
 {
-#define TEST_AND_SET(name)                                       \
+#define SET_IF_PRESENT(name)                                     \
     if (aSrc.mPresentFlags & CommissionerDataset::k##name##Bit)  \
     {                                                            \
         aDst.m##name = aSrc.m##name;                             \
         aDst.mPresentFlags |= CommissionerDataset::k##name##Bit; \
     }
 
-    TEST_AND_SET(BorderAgentLocator);
-    TEST_AND_SET(SessionId);
+    SET_IF_PRESENT(BorderAgentLocator);
+    SET_IF_PRESENT(SessionId);
 
-#undef TEST_AND_SET
-#define TEST_AND_SET(name)                                        \
+#undef SET_IF_PRESENT
+#define SET_IF_PRESENT(name)                                      \
     if (aSrc.mPresentFlags & CommissionerDataset::k##name##Bit)   \
     {                                                             \
         aDst.m##name = aSrc.m##name;                              \
@@ -1231,138 +1210,107 @@ void CommissionerApp::MergeDataset(CommissionerDataset &aDst, const Commissioner
         aDst.mPresentFlags &= ~CommissionerDataset::k##name##Bit; \
     }
 
-    TEST_AND_SET(SteeringData);
-    TEST_AND_SET(AeSteeringData);
-    TEST_AND_SET(NmkpSteeringData);
-    TEST_AND_SET(JoinerUdpPort);
-    TEST_AND_SET(AeUdpPort);
-    TEST_AND_SET(NmkpUdpPort);
+    SET_IF_PRESENT(SteeringData);
+    SET_IF_PRESENT(AeSteeringData);
+    SET_IF_PRESENT(NmkpSteeringData);
+    SET_IF_PRESENT(JoinerUdpPort);
+    SET_IF_PRESENT(AeUdpPort);
+    SET_IF_PRESENT(NmkpUdpPort);
 
-#undef TEST_AND_SET
+#undef SET_IF_PRESENT
 }
 
-Error CommissionerApp::ReadFile(std::string &aData, const std::string &aFilename)
+std::string CommissionerApp::OnJoinerRequest(const ByteArray &aJoinerId)
 {
-    Error error = Error::kNone;
-    FILE *f     = fopen(aFilename.c_str(), "r");
-    int   c;
+    std::string pskd;
 
-    VerifyOrExit(f != nullptr, error = Error::kNotFound);
-
-    while ((c = fgetc(f)) != EOF)
+    auto joinerInfo = mJoiners.find({JoinerType::kMeshCoP, aJoinerId});
+    if (joinerInfo != mJoiners.end())
     {
-        aData.push_back(c);
+        ExitNow(pskd = joinerInfo->second.mPSKd);
+    }
+
+    // Check if all joiners has been enabled.
+    joinerInfo = mJoiners.find({JoinerType::kMeshCoP, Commissioner::ComputeJoinerId(0)});
+    if (joinerInfo != mJoiners.end())
+    {
+        ExitNow(pskd = joinerInfo->second.mPSKd);
     }
 
 exit:
-    return error;
+    return pskd;
 }
 
-Error CommissionerApp::ReadPemFile(ByteArray &aData, const std::string &aFilename)
+void CommissionerApp::OnJoinerConnected(const ByteArray &aJoinerId, Error aError)
 {
-    Error       error = Error::kNone;
-    std::string data;
+    (void)aJoinerId;
+    (void)aError;
 
-    SuccessOrExit(error = ReadFile(data, aFilename));
-    aData = {data.begin(), data.end()};
-    aData.push_back(0);
-
-exit:
-    return error;
-}
-
-Error CommissionerApp::ReadHexStringFile(ByteArray &aData, const std::string &aFilename)
-{
-    Error       error = Error::kNone;
-    std::string hexString;
-    ByteArray   data;
-
-    SuccessOrExit(error = ReadFile(hexString, aFilename));
-
-    hexString.erase(std::remove_if(hexString.begin(), hexString.end(), [](int c) { return isspace(c); }),
-                    hexString.end());
-    SuccessOrExit(error = utils::Hex(data, hexString));
-
-    aData = data;
-
-exit:
-    return error;
-}
-
-Error CommissionerApp::WriteFile(const std::string &aData, const std::string &aFilename)
-{
-    Error error = Error::kNone;
-
-    std::ofstream file(aFilename);
-
-    VerifyOrExit(file.is_open(), error = Error::kNotFound);
-    for (auto c : aData)
-    {
-        file << c;
-    }
-
-exit:
-    return error;
-}
-
-Error CommissionerApp::ReadConfig(AppConfig &aAppConfig, const std::string &aFilename)
-{
-    Error       error = Error::kNone;
-    std::string configData;
-
-    SuccessOrExit(error = ReadFile(configData, aFilename));
-    SuccessOrExit(error = AppConfigFromJson(aAppConfig, configData));
-
-exit:
-    return error;
-}
-
-void CommissionerApp::HandlePanIdConflict(const std::string *aPeerAddr,
-                                          const ChannelMask *aChannelMask,
-                                          const uint16_t *   aPanId,
-                                          Error              aError)
-{
     // TODO(wgtdkp): logging
+}
+
+bool CommissionerApp::OnJoinerFinalize(const ByteArray &  aJoinerId,
+                                       const std::string &aVendorName,
+                                       const std::string &aVendorModel,
+                                       const std::string &aVendorSwVersion,
+                                       const ByteArray &  aVendorStackVersion,
+                                       const std::string &aProvisioningUrl,
+                                       const ByteArray &  aVendorData)
+{
+    (void)aVendorName;
+    (void)aVendorModel;
+    (void)aVendorSwVersion;
+    (void)aVendorStackVersion;
+    (void)aVendorData;
+
+    bool accepted = false;
+
+    auto configuredJoinerInfo = GetJoinerInfo(JoinerType::kMeshCoP, aJoinerId);
+
+    // TODO(deimi): logging
+    VerifyOrExit(configuredJoinerInfo != nullptr, accepted = false);
+    VerifyOrExit(aProvisioningUrl == configuredJoinerInfo->mProvisioningUrl, accepted = false);
+
+    accepted = true;
+
+exit:
+    return accepted;
+}
+
+void CommissionerApp::OnKeepAliveResponse(Error aError)
+{
+    (void)aError;
+
+    // Dummy handler.
+}
+
+void CommissionerApp::OnPanIdConflict(const std::string &aPeerAddr, const ChannelMask &aChannelMask, uint16_t aPanId)
+{
     (void)aPeerAddr;
 
-    if (aError != Error::kNone)
-    {
-        return;
-    }
-
-    // Main thread will wait for updates to mPanIdConflicts,
-    // which guarantees no concurrent access to it.
-    mPanIdConflicts[*aPanId] = *aChannelMask;
+    // FIXME(wgtdkp): synchronization
+    mPanIdConflicts[aPanId] = aChannelMask;
 }
 
-void CommissionerApp::HandleEnergyReport(const std::string *aPeerAddr,
-                                         const ChannelMask *aChannelMask,
-                                         const ByteArray *  aEnergyList,
-                                         Error              aError)
+void CommissionerApp::OnEnergyReport(const std::string &aPeerAddr,
+                                     const ChannelMask &aChannelMask,
+                                     const ByteArray &  aEnergyList)
 {
     Address addr;
 
-    SuccessOrExit(aError);
-    SuccessOrExit(addr.Set(*aPeerAddr));
+    SuccessOrDie(addr.Set(aPeerAddr));
 
-    // Main thread will wait for updates to mPanIdConflicts,
-    // which guarantees no concurrent access to it.
-    mEnergyReports[addr] = {*aChannelMask, *aEnergyList};
-
-exit:
-    return;
+    // FIXME(wgtdkp): synchronization
+    mEnergyReports[addr] = {aChannelMask, aEnergyList};
 }
 
-void CommissionerApp::HandleDatasetChanged(Error error)
+void CommissionerApp::OnDatasetChanged()
 {
-    // TODO(wgtdkp): logging
-    (void)error;
-
     mCommissioner->GetActiveDataset(
         [this](const ActiveOperationalDataset *aDataset, Error aError) {
-            if (aError == Error::kNone)
+            if (aError == ErrorCode::kNone)
             {
-                // FIXME(wgtdkp): syncronization
+                // FIXME(wgtdkp): synchronization
                 mActiveDataset = *aDataset;
             }
             else
@@ -1374,9 +1322,9 @@ void CommissionerApp::HandleDatasetChanged(Error error)
 
     mCommissioner->GetPendingDataset(
         [this](const PendingOperationalDataset *aDataset, Error aError) {
-            if (aError == Error::kNone)
+            if (aError == ErrorCode::kNone)
             {
-                // FIXME(wgtdkp): syncronization
+                // FIXME(wgtdkp): synchronization
                 mPendingDataset = *aDataset;
             }
             else
@@ -1385,6 +1333,26 @@ void CommissionerApp::HandleDatasetChanged(Error error)
             }
         },
         0xFFFF);
+}
+
+Error CommissionerApp::ValidatePSKd(const std::string &aPSKd)
+{
+    Error error;
+
+    VerifyOrExit(aPSKd.size() >= kMinJoinerDeviceCredentialLength && aPSKd.size() <= kMaxJoinerDeviceCredentialLength,
+                 error = ERROR_INVALID_ARGS("PSKd length(={}) exceeds range [{}, {}]", aPSKd.size(),
+                                            kMinJoinerDeviceCredentialLength, kMaxJoinerDeviceCredentialLength));
+
+    for (auto c : aPSKd)
+    {
+        VerifyOrExit(isdigit(c) || isupper(c),
+                     error = ERROR_INVALID_ARGS("PSKd includes non-digit and non-uppercase characters: {}", c));
+        VerifyOrExit(c != 'I' && c != 'O' && c != 'Q' && c != 'Z',
+                     error = ERROR_INVALID_ARGS("PSKd includes invalid uppercase characters: {}", c));
+    }
+
+exit:
+    return error;
 }
 
 const JoinerInfo *CommissionerApp::GetJoinerInfo(JoinerType aType, const ByteArray &aJoinerId)
@@ -1400,70 +1368,6 @@ const JoinerInfo *CommissionerApp::GetJoinerInfo(JoinerType aType, const ByteArr
         return &joinerInfo->second;
     }
     return nullptr;
-}
-
-Error CommissionerApp::MakeConfig(Config &aConfig, const AppConfig &aAppConfig)
-{
-    Error error = Error::kNone;
-
-    aConfig = aAppConfig.mConfig;
-
-    mCommLogStream.open(aAppConfig.mLogFile, std::ofstream::out | std::ofstream::app);
-    VerifyOrExit(mCommLogStream.is_open(), error = Error::kNotFound);
-
-    aConfig.mLogWriter = [this](LogLevel aLevel, const std::string &aMsg) { WriteCommLog(aLevel, aMsg); };
-
-    if (!aAppConfig.mPSKc.empty())
-    {
-        SuccessOrExit(error = utils::Hex(aConfig.mPSKc, aAppConfig.mPSKc));
-    }
-    if (!aAppConfig.mPrivateKeyFile.empty())
-    {
-        SuccessOrExit(error = ReadPemFile(aConfig.mPrivateKey, aAppConfig.mPrivateKeyFile));
-    }
-    if (!aAppConfig.mCertificateFile.empty())
-    {
-        SuccessOrExit(error = ReadPemFile(aConfig.mCertificate, aAppConfig.mCertificateFile));
-    }
-    if (!aAppConfig.mTrustAnchorFile.empty())
-    {
-        SuccessOrExit(error = ReadPemFile(aConfig.mTrustAnchor, aAppConfig.mTrustAnchorFile));
-    }
-
-exit:
-    return error;
-}
-
-static std::string ToString(LogLevel aLevel)
-{
-    switch (aLevel)
-    {
-    case LogLevel::kOff:
-        return "off";
-    case LogLevel::kCritical:
-        return "critical";
-    case LogLevel::kError:
-        return "error";
-    case LogLevel::kWarn:
-        return "warn";
-    case LogLevel::kInfo:
-        return "info";
-    case LogLevel::kDebug:
-        return "debug";
-    default:
-        ASSERT(false);
-        return "unknown";
-    }
-}
-
-void CommissionerApp::WriteCommLog(LogLevel aLevel, const std::string &aMsg)
-{
-    ASSERT(mCommLogStream.is_open());
-
-    char        dateBuf[64];
-    std::time_t now = std::time(nullptr);
-    std::strftime(dateBuf, sizeof(dateBuf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
-    mCommLogStream << "[ " << dateBuf << " ] [ " << ToString(aLevel) << " ] " << aMsg << std::endl;
 }
 
 } // namespace commissioner

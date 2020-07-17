@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,81 +26,88 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(commissioner
-    openthread/bloom_filter.cpp
-    openthread/bloom_filter.hpp
-    openthread/crc16.cpp
-    openthread/crc16.hpp
-    openthread/pbkdf2_cmac.cpp
-    openthread/pbkdf2_cmac.hpp
-    openthread/random.cpp
-    openthread/random.hpp
-    openthread/README.md
-    openthread/sha256.cpp
-    openthread/sha256.hpp
-    cbor.cpp
-    cbor.hpp
-    coap.cpp
-    coap.hpp
-    coap_secure.hpp
-    commissioner_impl.cpp
-    commissioner_impl.hpp
-    commissioner_safe.cpp
-    commissioner_safe.hpp
-    commissioning_session.cpp
-    commissioning_session.hpp
-    cose.cpp
-    cose.hpp
-    cwt.hpp
-    dtls.cpp
-    dtls.hpp
-    endpoint.hpp
-    error.cpp
-    event.hpp
-    logging.cpp
-    logging.hpp
-    multicast_dns.cpp
-    multicast_dns.hpp
-    network_data.cpp
-    openthread
-    socket.cpp
-    socket.hpp
-    time.hpp
-    timer.hpp
-    tlv.cpp
-    tlv.hpp
-    token_manager.cpp
-    token_manager.hpp
-    udp_proxy.cpp
-    udp_proxy.hpp
-    uri.hpp
-    ${PROJECT_SOURCE_DIR}/include/commissioner/border_agent.hpp
-    ${PROJECT_SOURCE_DIR}/include/commissioner/commissioner.hpp
-    ${PROJECT_SOURCE_DIR}/include/commissioner/network_data.hpp
-    ${PROJECT_SOURCE_DIR}/include/commissioner/error.hpp
-    ${PROJECT_SOURCE_DIR}/include/commissioner/defines.hpp)
+add_library(commissioner)
 
-target_link_libraries(commissioner PRIVATE
-    cn-cbor
-    cose
-    mdns
-    mbedtls
-    mbedx509
-    mbedcrypto
-    fmt::fmt
-    event_core
-    event_pthreads
-    commissioner-common)
+target_sources(commissioner
+    PRIVATE
+        cbor.cpp
+        cbor.hpp
+        coap.cpp
+        coap.hpp
+        coap_secure.hpp
+        commissioner_impl.cpp
+        commissioner_impl.hpp
+        commissioner_safe.cpp
+        commissioner_safe.hpp
+        cose.cpp
+        cose.hpp
+        cwt.hpp
+        dtls.cpp
+        dtls.hpp
+        endpoint.hpp
+        event.hpp
+        joiner_session.cpp
+        joiner_session.hpp
+        logging.cpp
+        logging.hpp
+        mbedtls_error.cpp
+        mbedtls_error.hpp
+        message.hpp
+        network_data.cpp
+        openthread/bloom_filter.cpp
+        openthread/bloom_filter.hpp
+        openthread/crc16.cpp
+        openthread/crc16.hpp
+        openthread/pbkdf2_cmac.cpp
+        openthread/pbkdf2_cmac.hpp
+        openthread/random.cpp
+        openthread/random.hpp
+        openthread/sha256.cpp
+        openthread/sha256.hpp
+        socket.cpp
+        socket.hpp
+        timer.hpp
+        tlv.cpp
+        tlv.hpp
+        token_manager.cpp
+        token_manager.hpp
+        udp_proxy.cpp
+        udp_proxy.hpp
+        uri.hpp
+)
 
-target_include_directories(commissioner PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(commissioner PRIVATE
-    ${PROJECT_SOURCE_DIR}/third_party/mbedtls/repo/include
-    ${PROJECT_SOURCE_DIR}/third_party/libevent/repo/include
-    ${PROJECT_BINARY_DIR}/third_party/libevent/repo/include)
+target_link_libraries(commissioner
+    PRIVATE
+        $<$<BOOL:${OT_COMM_CCM}>:cn-cbor::cn-cbor>
+        $<$<BOOL:${OT_COMM_CCM}>:cose>
+        mdns
+        mbedtls
+        mbedx509
+        mbedcrypto
+        fmt::fmt
+        event_core
+        event_pthreads
+        $<$<NOT:$<BOOL:${OT_COMM_ANDROID}>>:pthread>
+        commissioner-common
+)
+
+target_compile_definitions(commissioner
+    PRIVATE
+        $<IF:$<BOOL:${OT_COMM_CCM}>, OT_COMM_CONFIG_CCM_ENABLE=1, OT_COMM_CONFIG_CCM_ENABLE=0>
+)
+
+target_include_directories(commissioner
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+)
 
 install(TARGETS commissioner
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        ARCHIVE DESTINATION lib
+)
 
 ## Install third-party shared libraries. We need to install
 ## those shared libraries to enable commissioner-cli.
@@ -108,23 +115,83 @@ install(TARGETS commissioner
 ## We here install the built .so files directly
 ## because those third-party libraries are included
 ## as EXCLUDE_FROM_ALL, which means `install()` is
-## not disabled for them (intended).
+## disabled for them (intended).
 if (BUILD_SHARED_LIBS)
     install(FILES
-                $<TARGET_FILE:cn-cbor>
-                $<TARGET_FILE:cose>
-                $<TARGET_FILE:mdns>
-                $<TARGET_FILE:mbedtls>
-                $<TARGET_FILE:mbedx509>
-                $<TARGET_FILE:mbedcrypto>
-                $<TARGET_FILE:fmt::fmt>
-                $<TARGET_FILE:event_core_shared>
-                $<TARGET_FILE:event_pthreads_shared>
-            DESTINATION lib)
+            $<$<BOOL:${OT_COMM_CCM}>:$<TARGET_FILE:cn-cbor::cn-cbor>>
+            $<$<BOOL:${OT_COMM_CCM}>:$<TARGET_FILE:cose>>
+            $<TARGET_FILE:mdns>
+            $<TARGET_FILE:mbedtls>
+            $<TARGET_FILE:mbedx509>
+            $<TARGET_FILE:mbedcrypto>
+            $<TARGET_FILE:fmt::fmt>
+            $<TARGET_FILE:event_core_shared>
+            $<TARGET_FILE:event_pthreads_shared>
+            DESTINATION lib
+    )
 
     ## Update ldconfig links and caches.
     install(CODE "execute_process(COMMAND sudo ldconfig)")
 endif()
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/commissioner
-        DESTINATION include)
+        DESTINATION include
+)
+
+if (OT_COMM_TEST)
+    add_executable(commissioner-test)
+
+    target_sources(commissioner-test
+        PRIVATE
+            coap_secure.hpp
+            coap_secure_test.cpp
+            coap.hpp
+            coap_test.cpp
+            commissioner_impl.hpp
+            commissioner_impl_test.cpp
+            commissioner_safe.hpp
+            commissioner_safe_test.cpp
+            cose.hpp
+            cose_test.cpp
+            dtls.hpp
+            dtls_test.cpp
+            socket.hpp
+            socket_test.cpp
+            token_manager.hpp
+            token_manager_test.cpp
+            $<$<BOOL:${OT_COMM_APP}>:$<TARGET_OBJECTS:commissioner-app-test>>
+            $<TARGET_OBJECTS:commissioner-common-test>
+    )
+
+    target_link_libraries(commissioner-test
+        PRIVATE
+            Catch2::Catch2
+            $<$<BOOL:${OT_COMM_CCM}>:cn-cbor::cn-cbor>
+            $<$<BOOL:${OT_COMM_CCM}>:cose>
+            mdns
+            mbedtls
+            mbedx509
+            mbedcrypto
+            fmt::fmt
+            event_core
+            event_pthreads
+            commissioner
+            $<$<BOOL:${OT_COMM_APP}>:commissioner-app>
+            commissioner-common
+    )
+
+    target_compile_definitions(commissioner-test
+        PRIVATE
+            $<IF:$<BOOL:${OT_COMM_CCM}>, OT_COMM_CONFIG_CCM_ENABLE=1, OT_COMM_CONFIG_CCM_ENABLE=0>
+    )
+
+    target_include_directories(commissioner-test
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/src
+    )
+
+    set_target_properties(commissioner-test
+        PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+endif()

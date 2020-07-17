@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 test_announce_begin() {
     set -e
 
-    start_otbr "${NON_CCM_NCP}" "eth0"
+    start_otbr
     form_network "${PSKC}"
 
     start_commissioner "${NON_CCM_CONFIG}"
@@ -40,4 +40,6 @@ test_announce_begin() {
     send_command_to_commissioner "active"
     send_command_to_commissioner "announce 0xffffffff 2 32 ff02::2"
     stop_commissioner
+
+    stop_otbr
 }

@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,70 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(commissioner-app
-    commissioner_app.cpp
-    json.cpp)
+add_library(commissioner-app)
 
-target_link_libraries(commissioner-app PUBLIC
-    commissioner
-    commissioner-common)
+target_sources(commissioner-app
+    PRIVATE
+        commissioner_app.cpp
+        commissioner_app.hpp
+        border_agent.cpp
+        border_agent.hpp
+        file_logger.cpp
+        file_logger.hpp
+        file_util.cpp
+        file_util.hpp
+        json.cpp
+        json.hpp
+)
 
-target_include_directories(commissioner-app PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(commissioner-app
+    PUBLIC
+        commissioner
+        commissioner-common
+    PRIVATE
+        fmt::fmt
+        mdns
+        nlohmann_json::nlohmann_json
+)
 
-target_include_directories(commissioner-app PRIVATE
-    ${PROJECT_SOURCE_DIR}/third_party/json/repo/single_include)
+target_include_directories(commissioner-app
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+)
 
 install(DIRECTORY etc/commissioner
         FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-        DESTINATION etc)
+        DESTINATION etc
+)
 
 if (BUILD_SHARED_LIBS)
     install(TARGETS commissioner-app
             LIBRARY DESTINATION lib
-            ARCHIVE DESTINATION lib)
+            ARCHIVE DESTINATION lib
+    )
+endif()
+
+if (OT_COMM_TEST)
+    add_library(commissioner-app-test OBJECT)
+
+    target_sources(commissioner-app-test
+        PRIVATE
+            commissioner_app.hpp
+            commissioner_app_test.cpp
+            json.hpp
+            json_test.cpp
+    )
+
+    target_include_directories(commissioner-app-test
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(commissioner-app-test
+        PRIVATE
+            Catch2::Catch2
+            commissioner-app
+    )
 endif()
 
 add_subdirectory(cli)

@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,8 @@
  *   This file includes definitions of all CoAP resources.
  */
 
-#ifndef URI_HPP_
-#define URI_HPP_
-
-#include <string>
+#ifndef OT_COMM_LIBRARY_URI_HPP_
+#define OT_COMM_LIBRARY_URI_HPP_
 
 namespace ot {
 
@@ -93,4 +91,4 @@ static const char *const kComToken = "/.well-known/ccm";
 
 } // namespace ot
 
-#endif // URI_HPP_
+#endif // OT_COMM_LIBRARY_URI_HPP_

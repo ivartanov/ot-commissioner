@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,52 +31,54 @@
  *   The file defines the thread safe commissioner implementation.
  */
 
-#ifndef COMMISSIONER_SAFE_HPP_
-#define COMMISSIONER_SAFE_HPP_
-
-#include "tlv.hpp"
-#include <commissioner/commissioner.hpp>
+#ifndef OT_COMM_LIBRARY_COMMISSIONER_SAFE_HPP_
+#define OT_COMM_LIBRARY_COMMISSIONER_SAFE_HPP_
 
 #include <mutex>
 #include <thread>
 
-#include "coap.hpp"
-#include "coap_secure.hpp"
-#include "commissioner_impl.hpp"
-#include "dtls.hpp"
-#include "event.hpp"
-#include "timer.hpp"
-#include "token_manager.hpp"
+#include <commissioner/commissioner.hpp>
+
+#include "library/coap.hpp"
+#include "library/coap_secure.hpp"
+#include "library/commissioner_impl.hpp"
+#include "library/dtls.hpp"
+#include "library/event.hpp"
+#include "library/timer.hpp"
+#include "library/tlv.hpp"
+#include "library/token_manager.hpp"
 
 namespace ot {
 
 namespace commissioner {
 
-// This is the implementation of Thread Commissioner interface.
-// It is based on the event-driven implementation and runs the
-// even loop in a background thread. All API calls are synchronized
-// to the even loop or guarded by locks, which means they can be
-// concurrently called from multiple threads.
-//
-// This is the standard Commissioner instance returned by
-// Commissioner::Create().
-//
+/**
+ * This class implements the Commissioner interface.
+ *
+ * It is based on the event-driven implementation and runs the
+ * event loop in a background thread. Accesses to the event-driven
+ * implementation are synchronized between user thread and the
+ * event-loop thread which means the user can safely call a
+ * Commissioner API from a user thread. But it is not safe to
+ * concurrently call a Commissioner API from multiple user threads.
+ *
+ */
 class CommissionerSafe : public Commissioner
 {
 public:
-    CommissionerSafe();
+    CommissionerSafe(CommissionerHandler &aHandler)
+        : mHandler(aHandler)
+    {
+    }
 
     CommissionerSafe(const CommissionerSafe &aCommissioner) = delete;
     const CommissionerSafe &operator=(const CommissionerSafe &aCommissioner) = delete;
 
-    Error Init(const Config &aConfig);
+    Error Init(const Config &aConfig) override;
 
     ~CommissionerSafe() override;
 
     const Config &GetConfig() const override;
-
-    void SetJoinerInfoRequester(JoinerInfoRequester aJoinerInfoRequester) override;
-    void SetCommissioningHandler(CommissioningHandler aCommissioningHandler) override;
 
     uint16_t GetSessionId() const override;
 
@@ -89,15 +91,6 @@ public:
     const std::string &GetDomainName() const override;
 
     void AbortRequests() override;
-
-    // Start the commissioner event loop in background.
-    Error Start() override;
-
-    // Stop the commissioner running in background.
-    void Stop() override;
-
-    void  Discover(Handler<std::list<BorderAgent>> aHandler) override;
-    Error Discover(std::list<BorderAgent> &aBorderAgentList) override;
 
     void  Connect(ErrorHandler aHandler, const std::string &aAddr, uint16_t aPort) override;
     Error Connect(const std::string &aAddr, uint16_t aPort) override;
@@ -192,12 +185,6 @@ public:
 
     Error SetToken(const ByteArray &aSignedToken, const ByteArray &aSignerCert) override;
 
-    void SetDatasetChangedHandler(ErrorHandler aHandler) override;
-
-    void SetPanIdConflictHandler(PanIdConflictHandler aHandler) override;
-
-    void SetEnergyReportHandler(EnergyReportHandler aHandler) override;
-
 private:
     using AsyncRequest = std::function<void()>;
 
@@ -205,6 +192,9 @@ private:
 
     void         PushAsyncRequest(AsyncRequest &&aAsyncRequest);
     AsyncRequest PopAsyncRequest();
+
+    void StartEventLoopThread();
+    void StopEventLoopThread();
 
 private:
     class EventBaseHolder
@@ -218,9 +208,14 @@ private:
         struct event_base *mEventBase;
     };
 
+    CommissionerHandler &mHandler;
+
+    // The EventBaseHolder needs to be the first member so that
+    // it is constructed before any other members and destructed
+    // after any other members.
     EventBaseHolder mEventBase;
 
-    CommissionerImpl mImpl;
+    std::shared_ptr<CommissionerImpl> mImpl;
 
     // The event used to synchronize between the mEventThread
     // and user thread. It will be activated by user calls
@@ -235,11 +230,11 @@ private:
     std::queue<AsyncRequest> mAsyncRequestQueue;
 
     // The even loop thread running in background.
-    std::shared_ptr<std::thread> mEventThread;
+    std::thread mEventThread;
 };
 
 } // namespace commissioner
 
 } // namespace ot
 
-#endif // COMMISSIONER_SAFE_HPP_
+#endif // OT_COMM_LIBRARY_COMMISSIONER_SAFE_HPP_

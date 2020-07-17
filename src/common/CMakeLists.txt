@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,56 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(commissioner-common
-    address.cpp
-    utils.cpp)
+add_library(commissioner-common)
 
-target_include_directories(commissioner-common PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR})
+target_sources(commissioner-common
+    PRIVATE
+        address.cpp
+        address.hpp
+        error.cpp
+        error_macros.hpp
+        time.cpp
+        time.hpp
+        utils.cpp
+        utils.hpp
+)
+
+target_link_libraries(commissioner-common
+    PUBLIC fmt::fmt
+)
+
+target_include_directories(commissioner-common
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/src
+)
 
 if (BUILD_SHARED_LIBS)
     install(TARGETS commissioner-common
             LIBRARY DESTINATION lib
-            ARCHIVE DESTINATION lib)
+            ARCHIVE DESTINATION lib
+    )
+endif()
+
+if (OT_COMM_TEST)
+    add_library(commissioner-common-test OBJECT)
+
+    target_sources(commissioner-common-test
+        PRIVATE
+            address.hpp
+            address_test.cpp
+            error_test.cpp
+    )
+
+    target_include_directories(commissioner-common-test
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/include
+            ${PROJECT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(commissioner-common-test
+        PRIVATE
+            Catch2::Catch2
+            commissioner-common
+    )
 endif()

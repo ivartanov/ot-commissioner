@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2019, The OpenThread Commissioner Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,10 @@
  *   Ref: https://tools.ietf.org/html/rfc8392
  */
 
-#ifndef CWT_HPP_
-#define CWT_HPP_
+#ifndef OT_COMM_LIBRARY_CWT_HPP_
+#define OT_COMM_LIBRARY_CWT_HPP_
+
+#if OT_COMM_CONFIG_CCM_ENABLE
 
 namespace ot {
 
@@ -58,4 +60,6 @@ static const int kCoseKey             = 1;
 
 } // namespace ot
 
-#endif // CWT_HPP_
+#endif // OT_COMM_CONFIG_CCM_ENABLE
+
+#endif // OT_COMM_LIBRARY_CWT_HPP_

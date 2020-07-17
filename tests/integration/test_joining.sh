@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 test_joining() {
     set -e
 
-    start_otbr "${NON_CCM_NCP}" "eth0"
+    start_otbr
     form_network "${PSKC}"
 
     start_commissioner "${NON_CCM_CONFIG}"
@@ -40,15 +40,17 @@ test_joining() {
     send_command_to_commissioner "active"
 
     ## enable all MeshCoP joiners
-    send_command_to_commissioner "joiner enable meshcop ${JOINER_EUI64} ${JOINER_PASSPHRASE}"
+    send_command_to_commissioner "joiner enable meshcop ${JOINER_EUI64} ${JOINER_CREDENTIAL}"
 
     start_joiner "meshcop"
 
     stop_commissioner
+
+    stop_otbr
 }
 
 test_joining_fail() {
-    start_otbr "${NON_CCM_NCP}" "eth0"
+    start_otbr
     form_network "${PSKC}"
 
     start_commissioner "${NON_CCM_CONFIG}"
@@ -59,4 +61,6 @@ test_joining_fail() {
     start_joiner "meshcop" && return 1
 
     stop_commissioner
+
+    stop_otbr
 }

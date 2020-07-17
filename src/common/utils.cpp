@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,11 @@
  *   This file implements commissioner utilities.
  */
 
-#include "utils.hpp"
+#include "common/utils.hpp"
 
 #include <ctype.h>
 
-#include <commissioner/error.hpp>
+#include "error_macros.hpp"
 
 namespace ot {
 
@@ -78,26 +78,26 @@ std::string Hex(const ByteArray &aBytes)
 
 static inline uint8_t Hex(char c)
 {
-    ASSERT(isxdigit(c));
+    VerifyOrDie(isxdigit(c));
     return c >= 'A' && c <= 'F' ? (c - 'A' + 10) : c >= 'a' && c <= 'f' ? (c - 'a' + 10) : (c - '0');
 }
 
 Error Hex(ByteArray &aBuf, const std::string &aHexStr)
 {
-    Error error = Error::kFailed;
-
-    VerifyOrExit(aHexStr.size() % 2 == 0, error = Error::kInvalidArgs);
+    if (aHexStr.size() % 2 != 0)
+    {
+        return ERROR_INVALID_ARGS("{} is not a valid HEX string; must have even length", aHexStr);
+    }
 
     for (size_t i = 0; i < aHexStr.size(); i += 2)
     {
-        VerifyOrExit(isxdigit(aHexStr[i]) && isxdigit(aHexStr[i + 1]), error = Error::kInvalidArgs);
+        if (!isxdigit(aHexStr[i]) || !isxdigit(aHexStr[i + 1]))
+        {
+            return ERROR_INVALID_ARGS("{} is not a valid HEX string; there is non-HEX char", aHexStr);
+        }
         aBuf.push_back((Hex(aHexStr[i]) << 4) | Hex(aHexStr[i + 1]));
     }
-
-    error = Error::kNone;
-
-exit:
-    return error;
+    return ERROR_NONE;
 }
 
 } // namespace utils

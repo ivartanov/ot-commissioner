@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -45,72 +45,53 @@ setup_otbr() {
     cd "${OTBR}"
 
     ./script/bootstrap
-    ./script/setup
+    rm -rf "${OTBR}/third_party/openthread/repo"
+    ln -s "${OPENTHREAD}" "${OTBR}/third_party/openthread/repo"
+    OTBR_OPTIONS="-DOTBR_COVERAGE=ON -DOT_COVERAGE=ON" ./script/setup
 
-    ## Stop otbr-agent and wpantund
+    ## Stop otbr-agent
     sudo service otbr-agent stop
-    sudo service wpantund stop
 
     cd -
 }
 
 setup_openthread() {
     set -e
-    git clone "${OPENTHREAD_REPO}" "${OPENTHREAD}" --branch "${OPENTHREAD_BRANCH}" --depth=1
+
+    if [[ ! -d ${OPENTHREAD} ]]; then
+        git clone "${OPENTHREAD_REPO}" "${OPENTHREAD}" --branch "${OPENTHREAD_BRANCH}" --depth=1
+    fi
 
     cd "${OPENTHREAD}"
 
     git clean -xfd
     ./bootstrap
 
-    make -f examples/Makefile-simulation \
-        COAP=1 \
-        COAPS=1 \
-        ECDSA=1 \
-        BORDER_ROUTER=1 \
-        SERVICE=1 \
-        DHCP6_CLIENT=1 \
-        DHCP6_SERVER=1 \
-        JOINER=1 \
-        COMMISSIONER=1 \
-        MAC_FILTER=1 \
-        REFERENCE_DEVICE=1 \
-        THREAD_VERSION=1.2 \
-        CSL_RECEIVER=1 \
-        CSL_TRANSMITTER=1 \
-        LINK_PROBE=1 \
-        DUA=1 \
-        MLR=1 \
-        BBR=1 \
-        MTD=0 \
-        BORDER_AGENT=1 \
-        UDP_FORWARD=1 \
-        DEBUG=1
+    local ot_build_dir=$(VIRTUAL_TIME=0 ./script/test clean build | grep 'Build files have been written to: ' | cut -d: -f2 | tr -d ' ')
 
-    cp output/x86_64-unknown-linux-gnu/bin/ot-cli-ftd "${NON_CCM_CLI}"
-    cp output/x86_64-unknown-linux-gnu/bin/ot-ncp-ftd "${NON_CCM_NCP}"
+    cp ${ot_build_dir}/examples/apps/ncp/ot-rcp "${NON_CCM_RCP}"
+    cp ${ot_build_dir}/examples/apps/cli/ot-cli-ftd "${NON_CCM_CLI}"
 
-    executable_or_die "${NON_CCM_CLI}"
-    executable_or_die "${NON_CCM_NCP}"
+    cmake -DOT_PLATFORM=posix -DOT_DAEMON=ON -DOT_COVERAGE=ON -S . -B build
+    cmake --build build -j
+    cp build/src/posix/ot-ctl "${OT_CTL}"
 
     cd -
 }
 
 setup_commissioner() {
     set -e
-    pip install --user -r ../../tools/commissioner_thci/requirements.txt
+    pip install --user -r "${TEST_ROOT_DIR}"/../../tools/commissioner_thci/requirements.txt
 }
 
 main() {
     set -e
     mkdir -p "${RUNTIME_DIR}"
 
+    setup_openthread
+
     if (( SKIP_BUILDING_OTBR == 0 )) && [ ! -d "${OTBR}" ]; then
         setup_otbr
-    fi
-
-    if [ ! -d "${OPENTHREAD}" ]; then
-        setup_openthread
     fi
 
     setup_commissioner

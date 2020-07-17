@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -28,11 +28,12 @@
 
 /**
  * @file
- *   The file defines the config json parser;
+ *   This file defines the json parser of Network Data and Commissioner configuration.
+ *
  */
 
-#ifndef JSON_HPP_
-#define JSON_HPP_
+#ifndef OT_COMM_APP_JSON_HPP_
+#define OT_COMM_APP_JSON_HPP_
 
 #include <string>
 
@@ -40,8 +41,7 @@
 #include <commissioner/error.hpp>
 #include <commissioner/network_data.hpp>
 
-#include "app_config.hpp"
-#include "commissioner_app.hpp"
+#include "app/commissioner_app.hpp"
 
 namespace ot {
 
@@ -70,8 +70,7 @@ std::string ActiveDatasetToJson(const ActiveOperationalDataset &aDataset);
 Error       PendingDatasetFromJson(PendingOperationalDataset &aDataset, const std::string &aJson);
 std::string PendingDatasetToJson(const PendingOperationalDataset &aDataset);
 
-Error       AppConfigFromJson(AppConfig &aAppConfig, const std::string &aJson);
-std::string AppConfigToJson(const AppConfig &aAppConfig);
+Error ConfigFromJson(Config &aConfig, const std::string &aJson);
 
 std::string EnergyReportToJson(const EnergyReport &aEnergyReport);
 
@@ -81,4 +80,4 @@ std::string EnergyReportMapToJson(const EnergyReportMap &aEnergyReportMap);
 
 } // namespace ot
 
-#endif // JSON_HPP_
+#endif // OT_COMM_APP_JSON_HPP_

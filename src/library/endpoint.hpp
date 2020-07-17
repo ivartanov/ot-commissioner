@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,18 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ENDPOINT_HPP_
-#define ENDPOINT_HPP_
+#ifndef OT_COMM_LIBRARY_ENDPOINT_HPP_
+#define OT_COMM_LIBRARY_ENDPOINT_HPP_
 
 #include <functional>
-#include <stdint.h>
 #include <string>
+
+#include <stdint.h>
 
 #include <commissioner/error.hpp>
 
-#include <address.hpp>
+#include "common/address.hpp"
+#include "library/message.hpp"
 
 namespace ot {
 
@@ -49,9 +51,9 @@ public:
     Endpoint()          = default;
     virtual ~Endpoint() = default;
 
-    virtual Error    Send(const ByteArray &aBuf) = 0;
-    virtual Address  GetPeerAddr() const         = 0;
-    virtual uint16_t GetPeerPort() const         = 0;
+    virtual Error    Send(const ByteArray &aBuf, MessageSubType aSubType) = 0;
+    virtual Address  GetPeerAddr() const                                  = 0;
+    virtual uint16_t GetPeerPort() const                                  = 0;
 
     void SetReceiver(Receiver aReceiver) { mReceiver = aReceiver; }
 
@@ -63,4 +65,4 @@ protected:
 
 } // namespace ot
 
-#endif // ENDPOINT_HPP_
+#endif // OT_COMM_LIBRARY_ENDPOINT_HPP_

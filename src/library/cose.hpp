@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2019, The OpenThread Commissioner Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -34,18 +34,21 @@
  * @note This file originates from the OpenThread implementation.
  */
 
-#ifndef COSE_HPP_
-#define COSE_HPP_
+#ifndef OT_COMM_LIBRARY_COSE_HPP_
+#define OT_COMM_LIBRARY_COSE_HPP_
+
+#if OT_COMM_CONFIG_CCM_ENABLE
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "cbor.hpp"
 #include <cose.h>
 #include <mbedtls/pk.h>
 
 #include <commissioner/defines.hpp>
 #include <commissioner/error.hpp>
+
+#include "library/cbor.hpp"
 
 namespace ot {
 
@@ -90,6 +93,7 @@ public:
     // OpenThread hates destructor.
     void Free();
 
+    // Validate the COSE SIGN1 message with given public key encoded as a COSE key.
     Error Validate(const CborMap &aCborPublicKey);
 
     Error Validate(const mbedtls_pk_context &aPublicKey);
@@ -119,4 +123,6 @@ Error MakeCoseKey(ByteArray &aEncodedCoseKey, const mbedtls_pk_context &aKey, co
 
 } // namespace ot
 
-#endif // COSE_HPP_
+#endif // OT_COMM_CONFIG_CCM_ENABLE
+
+#endif // OT_COMM_LIBRARY_COSE_HPP_

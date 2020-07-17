@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,23 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef COMMISSIONER_IMPL_HPP_
-#define COMMISSIONER_IMPL_HPP_
-
-#include "tlv.hpp"
-#include <commissioner/commissioner.hpp>
+#ifndef OT_COMM_LIBRARY_COMMISSIONER_IMPL_HPP_
+#define OT_COMM_LIBRARY_COMMISSIONER_IMPL_HPP_
 
 #include <atomic>
+#include <memory>
 
-#include "coap.hpp"
-#include "coap_secure.hpp"
-#include "commissioning_session.hpp"
-#include "dtls.hpp"
-#include "event.hpp"
-#include "multicast_dns.hpp"
-#include "timer.hpp"
-#include "token_manager.hpp"
-#include "udp_proxy.hpp"
+#include <commissioner/commissioner.hpp>
+
+#include "library/coap.hpp"
+#include "library/coap_secure.hpp"
+#include "library/dtls.hpp"
+#include "library/event.hpp"
+#include "library/joiner_session.hpp"
+#include "library/timer.hpp"
+#include "library/tlv.hpp"
+#include "library/token_manager.hpp"
+#include "library/udp_proxy.hpp"
 
 namespace ot {
 
@@ -65,22 +65,19 @@ namespace commissioner {
 //
 class CommissionerImpl : public Commissioner
 {
-    friend class CommissioningSession;
+    friend class JoinerSession;
 
 public:
-    explicit CommissionerImpl(struct event_base *aEventBase);
+    explicit CommissionerImpl(CommissionerHandler &aHandler, struct event_base *aEventBase);
 
     CommissionerImpl(const CommissionerImpl &aCommissioner) = delete;
     const CommissionerImpl &operator=(const CommissionerImpl &aCommissioner) = delete;
 
-    Error Init(const Config &aConfig);
+    Error Init(const Config &aConfig) override;
 
-    ~CommissionerImpl() override;
+    ~CommissionerImpl() override = default;
 
     const Config &GetConfig() const override;
-
-    void SetJoinerInfoRequester(JoinerInfoRequester aJoinerInfoRequester) override;
-    void SetCommissioningHandler(CommissioningHandler aCommissioningHandler) override;
 
     uint16_t GetSessionId() const override;
 
@@ -94,49 +91,40 @@ public:
 
     void AbortRequests() override;
 
-    // Start the commissioner event loop and will not return until it is stopped.
-    Error Start() override;
-
-    // Stop the commissioner.
-    void Stop() override;
-
-    void  Discover(Handler<std::list<BorderAgent>> aHandler) override;
-    Error Discover(std::list<BorderAgent> &) override { return Error::kNotImplemented; }
-
     void  Connect(ErrorHandler aHandler, const std::string &aAddr, uint16_t aPort) override;
-    Error Connect(const std::string &, uint16_t) override { return Error::kNotImplemented; }
+    Error Connect(const std::string &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     void Disconnect() override;
 
     void  Petition(PetitionHandler aHandler, const std::string &aAddr, uint16_t aPort) override;
-    Error Petition(std::string &, const std::string &, uint16_t) override { return Error::kNotImplemented; }
+    Error Petition(std::string &, const std::string &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  Resign(ErrorHandler aHandler) override;
-    Error Resign() override { return Error::kNotImplemented; }
+    Error Resign() override { return ERROR_UNIMPLEMENTED(""); }
 
     void  GetCommissionerDataset(Handler<CommissionerDataset> aHandler, uint16_t aDatasetFlags) override;
-    Error GetCommissionerDataset(CommissionerDataset &, uint16_t) override { return Error::kNotImplemented; }
+    Error GetCommissionerDataset(CommissionerDataset &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  SetCommissionerDataset(ErrorHandler aHandler, const CommissionerDataset &aDataset) override;
-    Error SetCommissionerDataset(const CommissionerDataset &) override { return Error::kNotImplemented; }
+    Error SetCommissionerDataset(const CommissionerDataset &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  SetBbrDataset(ErrorHandler aHandler, const BbrDataset &aDataset) override;
-    Error SetBbrDataset(const BbrDataset &) override { return Error::kNotImplemented; }
+    Error SetBbrDataset(const BbrDataset &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  GetBbrDataset(Handler<BbrDataset> aHandler, uint16_t aDatasetFlags) override;
-    Error GetBbrDataset(BbrDataset &, uint16_t) override { return Error::kNotImplemented; }
+    Error GetBbrDataset(BbrDataset &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  GetActiveDataset(Handler<ActiveOperationalDataset> aHandler, uint16_t aDatasetFlags) override;
-    Error GetActiveDataset(ActiveOperationalDataset &, uint16_t) override { return Error::kNotImplemented; }
+    Error GetActiveDataset(ActiveOperationalDataset &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  SetActiveDataset(ErrorHandler aHandler, const ActiveOperationalDataset &aActiveDataset) override;
-    Error SetActiveDataset(const ActiveOperationalDataset &) override { return Error::kNotImplemented; }
+    Error SetActiveDataset(const ActiveOperationalDataset &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  GetPendingDataset(Handler<PendingOperationalDataset> aHandler, uint16_t aDatasetFlags) override;
-    Error GetPendingDataset(PendingOperationalDataset &, uint16_t) override { return Error::kNotImplemented; }
+    Error GetPendingDataset(PendingOperationalDataset &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  SetPendingDataset(ErrorHandler aHandler, const PendingOperationalDataset &aPendingDataset) override;
-    Error SetPendingDataset(const PendingOperationalDataset &) override { return Error::kNotImplemented; }
+    Error SetPendingDataset(const PendingOperationalDataset &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  SetSecurePendingDataset(ErrorHandler                     aHandler,
                                   const std::string &              aPbbrAddr,
@@ -144,19 +132,19 @@ public:
                                   const PendingOperationalDataset &aDataset) override;
     Error SetSecurePendingDataset(const std::string &, uint32_t, const PendingOperationalDataset &) override
     {
-        return Error::kNotImplemented;
+        return ERROR_UNIMPLEMENTED("");
     }
 
     void  CommandReenroll(ErrorHandler aHandler, const std::string &aDstAddr) override;
-    Error CommandReenroll(const std::string &) override { return Error::kNotImplemented; }
+    Error CommandReenroll(const std::string &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  CommandDomainReset(ErrorHandler aHandler, const std::string &aDstAddr) override;
-    Error CommandDomainReset(const std::string &) override { return Error::kNotImplemented; }
+    Error CommandDomainReset(const std::string &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  CommandMigrate(ErrorHandler       aHandler,
                          const std::string &aDstAddr,
                          const std::string &aDstNetworkName) override;
-    Error CommandMigrate(const std::string &, const std::string &) override { return Error::kNotImplemented; }
+    Error CommandMigrate(const std::string &, const std::string &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  RegisterMulticastListener(Handler<uint8_t>                aHandler,
                                     const std::string &             aPbbrAddr,
@@ -164,7 +152,7 @@ public:
                                     uint32_t                        aTimeout) override;
     Error RegisterMulticastListener(uint8_t &, const std::string &, const std::vector<std::string> &, uint32_t) override
     {
-        return Error::kNotImplemented;
+        return ERROR_UNIMPLEMENTED("");
     }
 
     void  AnnounceBegin(ErrorHandler       aHandler,
@@ -172,13 +160,13 @@ public:
                         uint8_t            aCount,
                         uint16_t           aPeriod,
                         const std::string &aDstAddr) override;
-    Error AnnounceBegin(uint32_t, uint8_t, uint16_t, const std::string &) override { return Error::kNotImplemented; }
+    Error AnnounceBegin(uint32_t, uint8_t, uint16_t, const std::string &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  PanIdQuery(ErrorHandler       aHandler,
                      uint32_t           aChannelMask,
                      uint16_t           aPanId,
                      const std::string &aDstAddr) override;
-    Error PanIdQuery(uint32_t, uint16_t, const std::string &) override { return Error::kNotImplemented; }
+    Error PanIdQuery(uint32_t, uint16_t, const std::string &) override { return ERROR_UNIMPLEMENTED(""); }
 
     void  EnergyScan(ErrorHandler       aHandler,
                      uint32_t           aChannelMask,
@@ -188,19 +176,13 @@ public:
                      const std::string &aDstAddr) override;
     Error EnergyScan(uint32_t, uint8_t, uint16_t, uint16_t, const std::string &) override
     {
-        return Error::kNotImplemented;
+        return ERROR_UNIMPLEMENTED("");
     }
 
     void  RequestToken(Handler<ByteArray> aHandler, const std::string &aAddr, uint16_t aPort) override;
-    Error RequestToken(ByteArray &, const std::string &, uint16_t) override { return Error::kNotImplemented; }
+    Error RequestToken(ByteArray &, const std::string &, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
 
     Error SetToken(const ByteArray &aSignedToken, const ByteArray &aSignerCert) override;
-
-    void SetDatasetChangedHandler(ErrorHandler aHandler) override;
-
-    void SetPanIdConflictHandler(PanIdConflictHandler aHandler) override;
-
-    void SetEnergyReportHandler(EnergyReportHandler aHandler) override;
 
     struct event_base *GetEventBase() { return mEventBase; }
 
@@ -210,10 +192,6 @@ private:
     static Error ValidateConfig(const Config &aConfig);
     void         LoggingConfig();
 
-    ByteArray &  GetPendingSteeringData(JoinerType aJoinerType);
-    uint16_t &   GetPendingJoinerUdpPort(JoinerType aJoinerType);
-    bool         IsValidJoinerUdpPort(JoinerType aType, uint16_t aUdpPort);
-    void         UpdateCommissionerDataset(const std::list<tlv::Tlv> &aTlvList);
     static Error HandleStateResponse(const coap::Response *aResponse, Error aError);
 
     static ByteArray GetActiveOperationalDatasetTlvs(uint16_t aDatasetFlags);
@@ -226,9 +204,11 @@ private:
     static Error EncodePendingOperationalDataset(coap::Request &aRequest, const PendingOperationalDataset &aDataset);
     static Error EncodeChannelMask(ByteArray &aBuf, const ChannelMask &aChannelMask);
 
+#if OT_COMM_CONFIG_CCM_ENABLE
     static Error     DecodeBbrDataset(BbrDataset &aDataset, const coap::Response &aResponse);
     static Error     EncodeBbrDataset(coap::Request &aRequest, const BbrDataset &aDataset);
     static ByteArray GetBbrDatasetTlvs(uint16_t aDatasetFlags);
+#endif
 
     static Error     DecodeCommissionerDataset(CommissionerDataset &aDataset, const coap::Response &aResponse);
     static Error     EncodeCommissionerDataset(coap::Request &aRequest, const CommissionerDataset &aDataset);
@@ -239,7 +219,9 @@ private:
     // Set @p aKeepAlive to false to resign the commissioner role.
     void SendKeepAlive(Timer &aTimer, bool aKeepAlive = true);
 
+#if OT_COMM_CONFIG_CCM_ENABLE
     Error SignRequest(coap::Request &aRequest, tlv::Scope aScope = tlv::Scope::kMeshCoP);
+#endif
 
     Duration GetKeepAliveInterval() const { return std::chrono::seconds(mConfig.mKeepAliveInterval); };
 
@@ -253,12 +235,9 @@ private:
 
     void HandleRlyRx(const coap::Request &aRequest);
 
-    void HandleCommissioningSessionTimer(Timer &aTimer);
+    void HandleJoinerSessionTimer(Timer &aTimer);
 
 private:
-    static constexpr uint16_t kDefaultMmPort = 61631;
-    static constexpr uint16_t kDefaultMcPort = 49191;
-
     State    mState;
     uint16_t mSessionId; ///< The Commissioner Session ID.
 
@@ -267,38 +246,30 @@ private:
      * Implementation data.
      */
 
-    static constexpr uint32_t kMinKeepAliveInterval = 30;
-    static constexpr uint32_t kMaxKeepAliveInterval = 45;
-
-    struct event_base *mEventBase;
+    CommissionerHandler &mCommissionerHandler;
+    struct event_base *  mEventBase;
 
     Config mConfig;
-
-    BorderAgentQuerier mBaQuerier;
 
     Timer mKeepAliveTimer;
 
     coap::CoapSecure mBrClient;
 
-    std::map<ByteArray, CommissioningSession> mCommissioningSessions;
-    Timer                                     mCommissioningSessionTimer;
+    std::map<ByteArray, JoinerSession> mJoinerSessions;
+    Timer                              mJoinerSessionTimer;
 
     coap::Resource mResourceUdpRx;
     coap::Resource mResourceRlyRx;
 
     ProxyClient mProxyClient;
 
+#if OT_COMM_CONFIG_CCM_ENABLE
     TokenManager mTokenManager;
+#endif
 
-    coap::Resource       mResourceDatasetChanged;
-    coap::Resource       mResourcePanIdConflict;
-    coap::Resource       mResourceEnergyReport;
-    ErrorHandler         mDatasetChangedHandler;
-    PanIdConflictHandler mPanIdConflictHandler;
-    EnergyReportHandler  mEnergyReportHandler;
-
-    JoinerInfoRequester  mJoinerInfoRequester;
-    CommissioningHandler mCommissioningHandler;
+    coap::Resource mResourceDatasetChanged;
+    coap::Resource mResourcePanIdConflict;
+    coap::Resource mResourceEnergyReport;
 };
 
 /*
@@ -312,4 +283,4 @@ tlv::TlvPtr GetTlv(tlv::Type aTlvType, const coap::Message &aMessage, tlv::Scope
 
 } // namespace ot
 
-#endif // COMMISSIONER_IMPL_HPP_
+#endif // OT_COMM_LIBRARY_COMMISSIONER_IMPL_HPP_

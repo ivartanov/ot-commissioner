@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,13 @@
  *   The file defines constants and type aliases.
  */
 
-#ifndef COMMISSIONER_INCLUDE_DEFINES_HPP_
-#define COMMISSIONER_INCLUDE_DEFINES_HPP_
+#ifndef OT_COMM_DEFINES_HPP_
+#define OT_COMM_DEFINES_HPP_
 
-#include <stdint.h>
-
-#include <cstddef>
 #include <vector>
+
+#include <stddef.h>
+#include <stdint.h>
 
 #if defined(__clang__)
 #define OT_COMM_MUST_USE_RESULT __attribute__((warn_unused_result))
@@ -54,14 +54,24 @@ namespace commissioner {
  */
 
 /**
- * The minimum commissioner passphrase length.
+ * The minimum Commissioner Credential length.
  */
-static constexpr size_t kMinCommissionerPassphraseLength = 6;
+static constexpr size_t kMinCommissionerCredentialLength = 6;
 
 /**
- * The maximum commissioner passphrase length.
+ * The maximum Commissioner Credential length.
  */
-static constexpr size_t kMaxCommissionerPassPhraseLength = 255;
+static constexpr size_t kMaxCommissionerCredentialLength = 255;
+
+/**
+ * The minimum Joining Device Credential length.
+ */
+static constexpr size_t kMinJoinerDeviceCredentialLength = 6;
+
+/**
+ * The maximum Joining Device Credential length.
+ */
+static constexpr size_t kMaxJoinerDeviceCredentialLength = 32;
 
 /**
  * The maximum PSKc length.
@@ -157,4 +167,4 @@ using ByteArray = std::vector<uint8_t>;
 
 } // namespace ot
 
-#endif // COMMISSIONER_INCLUDE_DEFINES_HPP_
+#endif // OT_COMM_DEFINES_HPP_

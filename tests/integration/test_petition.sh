@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,13 @@
 test_petition() {
     set -e
 
-    start_otbr "${NON_CCM_NCP}" "eth0"
+    start_otbr
     form_network "${PSKC}"
 
     start_commissioner "${NON_CCM_CONFIG}"
     send_command_to_commissioner "start :: 49191"
     send_command_to_commissioner "active"
     stop_commissioner
+
+    stop_otbr
 }

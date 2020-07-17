@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,27 +27,20 @@
 #
 
 add_subdirectory(Catch2/repo)
-add_subdirectory(cn-cbor)
-add_subdirectory(COSE-C)
+
+if (OT_COMM_CCM)
+    set(CN_CBOR_FATAL_WARNINGS OFF CACHE BOOL "Disable -Werror and /W4")
+    set(CN_CBOR_COVERALLS OFF CACHE BOOL "Disable generating coveralls data")
+    set(CN_CBOR_BUILD_TESTS OFF CACHE BOOL "Disable compiling cbor tests")
+    add_subdirectory(cn-cbor/repo)
+
+    add_subdirectory(COSE-C)
+endif()
+
 add_subdirectory(fmtlib/repo)
 add_subdirectory(json/repo)
 
-if (BUILD_SHARED_LIBS)
-    set(EVENT__LIBRARY_TYPE "SHARED" CACHE BOOL "libevent disable OpenSSL" FORCE)
-else()
-    set(EVENT__LIBRARY_TYPE "STATIC" CACHE BOOL "libevent disable OpenSSL" FORCE)
-endif()
-set(EVENT__DISABLE_OPENSSL ON CACHE BOOL "libevent disable OpenSSL" FORCE)
-set(EVENT__DISABLE_SAMPLES ON CACHE BOOL "libevent disable samples" FORCE)
-set(EVENT__DISABLE_REGRESS ON CACHE BOOL "libevent disable regression tests" FORCE)
-set(EVENT__DISABLE_TESTS ON CACHE BOOL "libevent disable tests" FORCE)
-set(EVENT__DISABLE_BENCHMARK ON CACHE BOOL "libevent disable benchmark" FORCE)
-add_subdirectory(libevent/repo)
+add_subdirectory(libevent)
 
-## Mbedtls builds static libraries by default.
-if (BUILD_SHARED_LIBS)
-    set(USE_STATIC_MBEDTLS_LIBRARY OFF CACHE BOOL "disable static mbedtls library")
-    set(USE_SHARED_MBEDTLS_LIBRARY ON  CACHE BOOL "enable shared mbedtls libary")
-endif()
-add_subdirectory(mbedtls/repo)
+add_subdirectory(mbedtls)
 add_subdirectory(mdns/repo)

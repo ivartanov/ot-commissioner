@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,8 @@
 
 #include <signal.h>
 
-#include <iostream>
-
-#include "interpreter.hpp"
-#include <utils.hpp>
+#include "app/cli/interpreter.hpp"
+#include "common/utils.hpp"
 
 #ifndef OT_COMM_VERSION
 #error "OT_COMM_VERSION not defined"
@@ -86,7 +84,7 @@ static void HandleSignalInterrupt(int)
 
 int main(int argc, const char *argv[])
 {
-    Error error = Error::kNone;
+    Error error;
 
     Config config;
 
@@ -110,9 +108,9 @@ int main(int argc, const char *argv[])
     gInterpreter.Run();
 
 exit:
-    if (error != Error::kNone)
+    if (error != ErrorCode::kNone)
     {
-        Console::Write("start OT-commissioner CLI failed: " + ErrorToString(error), Console::Color::kRed);
+        Console::Write("start OT-commissioner CLI failed: " + error.ToString(), Console::Color::kRed);
     }
-    return error == Error::kNone ? 0 : -1;
+    return error == ErrorCode::kNone ? 0 : -1;
 }

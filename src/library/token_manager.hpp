@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2019, The OpenThread Commissioner Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,18 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TOKEN_MANAGER_HPP_
-#define TOKEN_MANAGER_HPP_
+#ifndef OT_COMM_LIBRARY_TOKEN_MANAGER_HPP_
+#define OT_COMM_LIBRARY_TOKEN_MANAGER_HPP_
+
+#if OT_COMM_CONFIG_CCM_ENABLE
 
 #include <mbedtls/pk.h>
 
 #include <commissioner/commissioner.hpp>
 #include <commissioner/error.hpp>
 
-#include "cbor.hpp"
-#include "coap_secure.hpp"
+#include "library/cbor.hpp"
+#include "library/coap_secure.hpp"
 
 namespace ot {
 
@@ -139,4 +141,6 @@ private:
 
 } // namespace ot
 
-#endif // TOKEN_MANAGER_HPP_
+#endif // OT_COMM_CONFIG_CCM_ENABLE
+
+#endif // OT_COMM_LIBRARY_TOKEN_MANAGER_HPP_

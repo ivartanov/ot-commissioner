@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,15 @@
  *   The file includes definition of Thread Network Data.
  */
 
-#ifndef COMMISSIONER_INCLUDE_NETWORK_DATA_HPP_
-#define COMMISSIONER_INCLUDE_NETWORK_DATA_HPP_
-
-#include <stdint.h>
+#ifndef OT_COMM_NETWORK_DATA_HPP_
+#define OT_COMM_NETWORK_DATA_HPP_
 
 #include <string>
 
-#include "commissioner/defines.hpp"
-#include "commissioner/error.hpp"
+#include <stdint.h>
+
+#include <commissioner/defines.hpp>
+#include <commissioner/error.hpp>
 
 namespace ot {
 
@@ -295,6 +295,7 @@ struct BbrDataset
  *
  * @param[out] aPrefix  A prefix in raw byte array.
  * @param[in]  aStr     A prefix string.
+ *
  * @return Error::kNone, succeed; Otherwise, failed.
  */
 Error Ipv6PrefixFromString(ByteArray &aPrefix, const std::string &aStr);
@@ -311,4 +312,4 @@ std::string Ipv6PrefixToString(ByteArray aPrefix);
 
 } // namespace ot
 
-#endif // COMMISSIONER_INCLUDE_NETWORK_DATA_HPP_
+#endif // OT_COMM_NETWORK_DATA_HPP_

@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,14 @@
  *   This file includes wrapper of libevent.
  */
 
-#ifndef EVENT_HPP_
-#define EVENT_HPP_
+#ifndef OT_COMM_LIBRARY_EVENT_HPP_
+#define OT_COMM_LIBRARY_EVENT_HPP_
+
+#include <functional>
 
 #include <event2/event.h>
 #include <event2/event_struct.h>
 #include <event2/thread.h>
-
-#include <functional>
 
 namespace ot {
 
@@ -50,4 +50,4 @@ using EventHandler = std::function<void(short aFlags)>;
 
 } // namespace ot
 
-#endif // EVENT_HPP_
+#endif // OT_COMM_LIBRARY_EVENT_HPP_

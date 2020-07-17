@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
  *   This file includes wrapper of mbedtls.
  */
 
-#ifndef DTLS_HPP_
-#define DTLS_HPP_
+#ifndef OT_COMM_LIBRARY_DTLS_HPP_
+#define OT_COMM_LIBRARY_DTLS_HPP_
 
 #include <functional>
 #include <list>
@@ -49,11 +49,11 @@
 #include <commissioner/commissioner.hpp>
 #include <commissioner/defines.hpp>
 
-#include "endpoint.hpp"
-#include "event.hpp"
-#include "socket.hpp"
-#include "timer.hpp"
-#include <utils.hpp>
+#include "common/utils.hpp"
+#include "library/endpoint.hpp"
+#include "library/event.hpp"
+#include "library/socket.hpp"
+#include "library/timer.hpp"
 
 namespace ot {
 
@@ -93,7 +93,7 @@ public:
     DtlsSession(const DtlsSession &aOther) = delete;
     const DtlsSession &operator=(const DtlsSession &aOther) = delete;
 
-    Error Send(const ByteArray &aBuf) override;
+    Error Send(const ByteArray &aBuf, MessageSubType aSubType) override;
 
     Error Init(const DtlsConfig &aConfig);
 
@@ -104,7 +104,8 @@ public:
     Error Bind(const std::string &aBindIp, uint16_t aPort);
     void  Disconnect(Error aError);
 
-    State GetState() const { return mState; }
+    State       GetState() const { return mState; }
+    std::string GetStateString() const;
 
     Address  GetPeerAddr() const override { return mSocket->GetPeerAddr(); }
     uint16_t GetPeerPort() const override { return mSocket->GetPeerPort(); }
@@ -154,7 +155,7 @@ private:
     //   Error::kInvalidArgs
     //   Error::kTransportBusy
     //   Error::kTransportFailed
-    Error Write(const ByteArray &aBuf);
+    Error Write(const ByteArray &aBuf, MessageSubType aSubType);
 
     Error TryWrite();
 
@@ -193,7 +194,7 @@ private:
 
     ConnectHandler mOnConnected = nullptr;
 
-    std::queue<ByteArray> mSendQueue;
+    std::queue<std::pair<ByteArray, MessageSubType>> mSendQueue;
 
     std::vector<int>         mCipherSuites;
     mbedtls_ssl_config       mConfig;
@@ -214,4 +215,4 @@ using DtlsSessionPtr = std::shared_ptr<DtlsSession>;
 
 } // namespace ot
 
-#endif // DTLS_HPP_
+#endif // OT_COMM_LIBRARY_DTLS_HPP_

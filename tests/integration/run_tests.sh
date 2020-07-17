@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 ##
 
 . "$(dirname "$0")"/test_announce_begin.sh
+. "$(dirname "$0")"/test_cli.sh
 . "$(dirname "$0")"/test_discover.sh
 . "$(dirname "$0")"/test_energy_scan.sh
 . "$(dirname "$0")"/test_joining.sh
@@ -53,6 +54,8 @@ run_test_case() {
 
     echo "====== test case: [ ${test_case} ] ======"
 
+    ## Clean intermediate states.
+    sudo rm -rf tmp
     rm -rf "${COMMISSIONER_LOG}"
 
     ## we cannot declare output with `local`,
@@ -70,10 +73,6 @@ run_test_case() {
         echo "------ test output begin ------"
         echo "${output}"
         echo "------ test output end ------"
-
-        echo "------ wpantund log begin ------"
-        cat "${WPANTUND_LOG}"
-        echo "------ wpantund log end ------"
 
         echo "------ otbr log begin ------"
         cat "${OTBR_LOG}"

@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,12 +26,12 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ADDRESS_HPP_
-#define ADDRESS_HPP_
-
-#include <sys/socket.h>
+#ifndef OT_COMM_COMMON_ADDRESS_HPP_
+#define OT_COMM_COMMON_ADDRESS_HPP_
 
 #include <string>
+
+#include <sys/socket.h>
 
 #include <commissioner/defines.hpp>
 #include <commissioner/error.hpp>
@@ -53,21 +53,13 @@ public:
 
     bool IsValid() const { return !mBytes.empty(); }
 
-    bool IsIpv4() const { return mBytes.size() == 4; }
+    bool IsIpv4() const { return mBytes.size() == kIpv4Size; }
 
-    bool IsIpv6() const { return mBytes.size() == 16; }
+    bool IsIpv6() const { return mBytes.size() == kIpv6Size; }
 
-    bool IsMulticast() const { return IsValid() && mBytes[0] == 0xFF; }
+    bool IsMulticast() const { return IsValid() && mBytes[0] == kMulticastPrefix; }
 
-    Error Set(const ByteArray &aRawAddr)
-    {
-        if (aRawAddr.size() != 4 && aRawAddr.size() != 16)
-        {
-            return Error::kInvalidArgs;
-        }
-        mBytes = aRawAddr;
-        return Error::kNone;
-    }
+    Error Set(const ByteArray &aRawAddr);
 
     Error Set(const std::string &aIp);
 
@@ -75,12 +67,23 @@ public:
 
     const ByteArray &GetRaw() const { return mBytes; }
 
-    Error ToString(std::string &aAddr) const;
+    /**
+     * Returns the string representation of the IP address.
+     *
+     * @return "INVALID_ADDR" if the address is not valid.
+     *
+     */
+    std::string ToString() const;
 
     // Invalid address string is not acceptable.
+    // For only unittests.
     static Address FromString(const std::string &aAddr);
 
 private:
+    static constexpr size_t  kIpv4Size        = 4;
+    static constexpr size_t  kIpv6Size        = 16;
+    static constexpr uint8_t kMulticastPrefix = 0xFF;
+
     ByteArray mBytes;
 };
 
@@ -88,4 +91,4 @@ private:
 
 } // namespace ot
 
-#endif // ADDRESS_HPP_
+#endif // OT_COMM_COMMON_ADDRESS_HPP_

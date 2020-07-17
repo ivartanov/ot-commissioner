@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,14 @@
 #
 
 cmake_minimum_required(VERSION 3.13.1)
-project(ot-commissioner VERSION 1.0.0)
+project(ot-commissioner VERSION 0.1.0)
 
-option(OT_COMM_COVERAGE         "Enable coverage reporting" OFF)
-option(OT_COMM_TEST             "Build tests" ON)
+option(OT_COMM_ANDROID          "Build with Android NDK" OFF)
 option(OT_COMM_APP              "Build the CLI App" ON)
+option(OT_COMM_CCM              "Build with Commercial Commissioning Mode" ON)
+option(OT_COMM_COVERAGE         "Enable coverage reporting" OFF)
+option(OT_COMM_JAVA_BINDING     "Build Java binding" OFF)
+option(OT_COMM_TEST             "Build tests" ON)
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
@@ -41,19 +44,9 @@ if(NOT "${CMAKE_CXX_STANDARD}")
     set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
+
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wfatal-errors -Wno-missing-braces")
-
-# Defines for mbedtls
-set(MBEDTLS_USER_CONFIG ${PROJECT_SOURCE_DIR}/third_party/mbedtls/mbedtls_user_config.h)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMBEDTLS_USER_CONFIG_FILE='<${MBEDTLS_USER_CONFIG}>'")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMBEDTLS_USER_CONFIG_FILE='<${MBEDTLS_USER_CONFIG}>'")
-
 add_subdirectory(src)
-
-if (OT_COMM_TEST)
-    add_subdirectory(tests)
-endif()
 add_subdirectory(tools)
 add_subdirectory(third_party EXCLUDE_FROM_ALL)

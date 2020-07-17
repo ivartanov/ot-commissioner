@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2019, The OpenThread Commissioner Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
  *   This file includes definitions for CoAP.
  */
 
-#ifndef COAP_HPP_
-#define COAP_HPP_
+#ifndef OT_COMM_LIBRARY_COAP_HPP_
+#define OT_COMM_LIBRARY_COAP_HPP_
 
 #include <algorithm>
 #include <functional>
@@ -45,10 +45,11 @@
 #include <commissioner/defines.hpp>
 #include <commissioner/error.hpp>
 
-#include "endpoint.hpp"
-#include "timer.hpp"
-#include <address.hpp>
-#include <utils.hpp>
+#include "common/address.hpp"
+#include "common/utils.hpp"
+#include "library/endpoint.hpp"
+#include "library/message.hpp"
+#include "library/timer.hpp"
 
 namespace ot {
 
@@ -331,7 +332,7 @@ public:
 
     uint32_t GetUint32Value() const
     {
-        ASSERT(mValue.size() <= sizeof(uint32_t));
+        VerifyOrDie(mValue.size() <= sizeof(uint32_t));
         uint32_t ret = 0;
         for (auto byte : mValue)
         {
@@ -457,6 +458,8 @@ public:
         return ByteArray(mHeader.mToken, mHeader.mToken + len);
     }
 
+    size_t GetOptionNum() const { return mOptions.size(); }
+
     Error SetUriPath(const std::string &aUriPath);
     Error GetUriPath(std::string &aUriPath) const { return GetOption(aUriPath, OptionType::kUriPath); }
 
@@ -466,46 +469,11 @@ public:
     }
     Error GetAccept(ContentFormat &aAcceptFormat) const;
 
-    Error SetIfMatch(const ByteArray &aETag) { return AppendOption(OptionType::kIfMatch, aETag); }
-    Error GetIfMatch(ByteArray &aETag) const { return GetOption(aETag, OptionType::kIfMatch); }
-
-    Error SetETag(const ByteArray &aETag) { return AppendOption(OptionType::kETag, aETag); }
-    Error GetETag(ByteArray &aETag) const { return GetOption(aETag, OptionType::kETag); }
-
-    Error SetIfNoneMatch() { return AppendOption(OptionType::kIfNonMatch, 0); }
-    Error GetIfNonMatch() const
-    {
-        return GetOption(OptionType::kIfNonMatch) == nullptr ? Error::kNotFound : Error::kNone;
-    }
-
-    Error SetLocationPath(const std::string &aLocationPath)
-    {
-        return AppendOption(OptionType::kLocationPath, aLocationPath);
-    }
-    Error GetLocationPath(std::string &aLocationPath) const
-    {
-        return GetOption(aLocationPath, OptionType::kLocationPath);
-    }
-
     Error SetContentFormat(ContentFormat aContentFormat)
     {
         return AppendOption(OptionType::kContentFormat, utils::to_underlying(aContentFormat));
     }
     Error GetContentFormat(ContentFormat &aContentFormat) const;
-
-    Error SetMaxAge(uint32_t aMaxAge) { return AppendOption(OptionType::kMaxAge, aMaxAge); }
-    Error GetMaxAge(uint32_t &aMaxAge) const { return GetOption(aMaxAge, OptionType::kMaxAge); }
-
-    Error SetProxyUri(const std::string &aProxyUri);
-    Error GetProxyUri(std::string &aProxyUri) const;
-
-    Error SetProxyScheme(const std::string &aProxyScheme);
-    Error GetProxyScheme(std::string &aProxyScheme) const;
-
-    Error SetSize1(uint32_t aSize1);
-    Error GetSize1(uint32_t &aSize1) const;
-
-    size_t GetOptionNum() const { return mOptions.size(); }
 
     bool IsEmpty(void) const { return (GetCode() == Code::kEmpty); };
 
@@ -534,6 +502,9 @@ public:
     std::string GetPayloadAsString() const { return std::string{mPayload.begin(), mPayload.end()}; }
 
     Endpoint *GetEndpoint() const { return mEndpoint; }
+
+    MessageSubType GetSubType() const { return mSubType; }
+    void           SetSubType(MessageSubType aSubType) { mSubType = aSubType; }
 
     static Error NormalizeUriPath(std::string &uriPath);
 
@@ -573,6 +544,8 @@ protected:
     Header                            mHeader;
     std::map<OptionType, OptionValue> mOptions;
     ByteArray                         mPayload;
+
+    MessageSubType mSubType;
 
     mutable Endpoint *mEndpoint = nullptr;
 };
@@ -650,11 +623,7 @@ public:
     // Send the response corresponding to specified request.
     Error SendResponse(const Request &aRequest, Response &aResponse);
 
-    Error SendEmptyChanged(const Request &aRequest)
-    {
-        return (aRequest.GetType() == Type::kConfirmable ? SendHeaderResponse(Code::kChanged, aRequest)
-                                                         : Error::kInvalidArgs);
-    }
+    Error SendEmptyChanged(const Request &aRequest);
 
     Error SendAck(const Request &aRequest) { return SendEmptyMessage(Type::kAcknowledgment, aRequest); }
 
@@ -707,7 +676,7 @@ private:
 
         TimePoint Earliest() const
         {
-            ASSERT(!IsEmpty());
+            VerifyOrDie(!IsEmpty());
             return mContainer.begin()->mNextTimerShot;
         }
 
@@ -716,7 +685,7 @@ private:
 
         const RequestHolder &Front() const
         {
-            ASSERT(!IsEmpty());
+            VerifyOrDie(!IsEmpty());
             return *mContainer.begin();
         }
 
@@ -805,4 +774,4 @@ private:
 
 } // namespace ot
 
-#endif // COAP_HPP_
+#endif // OT_COMM_LIBRARY_COAP_HPP_

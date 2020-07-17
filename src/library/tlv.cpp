@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,13 @@
  *   The file implements Thread TLV.
  */
 
-#include "tlv.hpp"
+#include "library/tlv.hpp"
 
 #include <set>
 
-#include "logging.hpp"
-#include <utils.hpp>
+#include "common/error_macros.hpp"
+#include "common/utils.hpp"
+#include "library/logging.hpp"
 
 namespace ot {
 
@@ -112,11 +113,9 @@ bool IsExtendedTlv(Type aType)
     }
 }
 
-Error Tlv::Serialize(ByteArray &aBuf) const
+void Tlv::Serialize(ByteArray &aBuf) const
 {
-    Error error = Error::kNone;
-
-    VerifyOrExit(IsValid(), error = Error::kInvalidState);
+    ASSERT(IsValid());
 
     utils::Encode(aBuf, utils::to_underlying(GetType()));
 
@@ -136,31 +135,30 @@ Error Tlv::Serialize(ByteArray &aBuf) const
     }
 
     aBuf.insert(aBuf.end(), mValue.begin(), mValue.end());
-
-exit:
-    return error;
 }
 
 TlvPtr Tlv::Deserialize(Error &aError, size_t &aOffset, const ByteArray &aBuf, Scope aScope)
 {
-    Error    error  = Error::kNone;
+    Error    error;
     size_t   offset = aOffset;
     uint8_t  type;
     uint16_t length;
     TlvPtr   tlv = nullptr;
 
-    VerifyOrExit(offset + 2 <= aBuf.size(), error = Error::kBadFormat);
+    VerifyOrExit(offset + 2 <= aBuf.size(), error = ERROR_BAD_FORMAT("premature end of TLV"));
     type   = aBuf[offset++];
     length = aBuf[offset++];
     if (length == kEscapeLength)
     {
-        VerifyOrExit(offset + 2 <= aBuf.size(), error = Error::kBadFormat);
+        VerifyOrExit(offset + 2 <= aBuf.size(),
+                     error = ERROR_BAD_FORMAT("premature end of Extended TLV(type={})", type));
 
         length = (aBuf[offset++] << 8) & 0xFF00;
         length |= (aBuf[offset++]) & 0x00FF;
     }
 
-    VerifyOrExit(offset + length <= aBuf.size(), error = Error::kBadFormat);
+    VerifyOrExit(offset + length <= aBuf.size(),
+                 error = ERROR_BAD_FORMAT("premature end of TLV(type={}, length={})", type, length));
 
     tlv = std::make_shared<Tlv>(utils::from_underlying<Type>(type), aScope);
     tlv->SetValue(&aBuf[offset], length);
@@ -168,7 +166,7 @@ TlvPtr Tlv::Deserialize(Error &aError, size_t &aOffset, const ByteArray &aBuf, S
     offset += length;
 
 exit:
-    if (error != Error::kNone)
+    if (error != ErrorCode::kNone)
     {
         tlv = nullptr;
     }
@@ -176,6 +174,7 @@ exit:
     {
         aOffset = offset;
     }
+
     aError = error;
     return tlv;
 }
@@ -361,19 +360,19 @@ uint16_t Tlv::GetTotalLength() const
 
 int8_t Tlv::GetValueAsInt8() const
 {
-    ASSERT(mValue.size() >= sizeof(int8_t));
+    VerifyOrDie(mValue.size() >= sizeof(int8_t));
     return static_cast<int8_t>(mValue[0]);
 }
 
 uint16_t Tlv::GetValueAsUint8() const
 {
-    ASSERT(mValue.size() >= sizeof(uint8_t));
+    VerifyOrDie(mValue.size() >= sizeof(uint8_t));
     return utils::Decode<uint8_t>(mValue);
 }
 
 uint16_t Tlv::GetValueAsUint16() const
 {
-    ASSERT(mValue.size() >= sizeof(uint16_t));
+    VerifyOrDie(mValue.size() >= sizeof(uint16_t));
     return utils::Decode<uint16_t>(mValue);
 }
 
@@ -393,14 +392,14 @@ ByteArray &Tlv::GetValue()
 
 Error GetTlvSet(TlvSet &aTlvSet, const ByteArray &aBuf, Scope aScope)
 {
-    Error  error  = Error::kNone;
+    Error  error;
     size_t offset = 0;
 
     while (offset < aBuf.size())
     {
         auto tlv = tlv::Tlv::Deserialize(error, offset, aBuf, aScope);
         SuccessOrExit(error);
-        ASSERT(tlv != nullptr);
+        VerifyOrDie(tlv != nullptr);
 
         if (tlv->IsValid())
         {
@@ -409,8 +408,8 @@ Error GetTlvSet(TlvSet &aTlvSet, const ByteArray &aBuf, Scope aScope)
         else
         {
             // Drop invalid TLVs
-            LOG_WARN("dropping invalid/unknown TLV(type={}, value={})", utils::to_underlying(tlv->GetType()),
-                     utils::Hex(tlv->GetValue()));
+            LOG_WARN(LOG_REGION_COAP, "dropping invalid/unknown TLV(type={}, value={})",
+                     utils::to_underlying(tlv->GetType()), utils::Hex(tlv->GetValue()));
         }
     }
 

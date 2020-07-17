@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Authors.
+ *    Copyright (c) 2019, The OpenThread Commissioner Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,33 @@
  *   This file includes definitions of utilities.
  */
 
-#ifndef UTILS_HPP_
-#define UTILS_HPP_
+#ifndef OT_COMM_COMMON_UTILS_HPP_
+#define OT_COMM_COMMON_UTILS_HPP_
 
 #include <string>
+
+#include <assert.h>
 
 #include <commissioner/defines.hpp>
 #include <commissioner/error.hpp>
 
-// ASSERT allows side-effect.
-#define ASSERT(aCondition)                  \
+#define ASSERT(aCondition)             \
+    do                                 \
+    {                                  \
+        bool condition = (aCondition); \
+        assert(condition);             \
+        if (condition)                 \
+        {                              \
+        }                              \
+    } while (false)
+
+#define SuccessOrDie(aError)                       \
+    do                                             \
+    {                                              \
+        VerifyOrDie((aError) == ErrorCode::kNone); \
+    } while (false)
+
+#define VerifyOrDie(aCondition)             \
     do                                      \
     {                                       \
         if (!(aCondition))                  \
@@ -50,13 +67,13 @@
         }                                   \
     } while (false)
 
-#define SuccessOrExit(aError)                             \
-    do                                                    \
-    {                                                     \
-        if ((aError) != ::ot::commissioner::Error::kNone) \
-        {                                                 \
-            goto exit;                                    \
-        }                                                 \
+#define SuccessOrExit(aError)             \
+    do                                    \
+    {                                     \
+        if ((aError) != ErrorCode::kNone) \
+        {                                 \
+            goto exit;                    \
+        }                                 \
     } while (false)
 
 #define VerifyOrExit(aCondition, ...) \
@@ -128,7 +145,7 @@ template <typename T> T Decode(const uint8_t *aBuf)
 
 template <typename T> T Decode(const ByteArray &aBuf)
 {
-    ASSERT(aBuf.size() >= sizeof(T));
+    VerifyOrDie(aBuf.size() >= sizeof(T));
     return Decode<T>(&aBuf[0]);
 }
 
@@ -150,4 +167,4 @@ Error Hex(ByteArray &aBuf, const std::string &aHexStr);
 
 } // namespace ot
 
-#endif // UTILS_HPP_
+#endif // OT_COMM_COMMON_UTILS_HPP_

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2019, The OpenThread Commissioner Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 test_energy_scan() {
     set -e
 
-    start_otbr "${NON_CCM_NCP}" "eth0"
+    start_otbr
     form_network "${PSKC}"
 
     start_commissioner "${NON_CCM_CONFIG}"
@@ -44,4 +44,6 @@ test_energy_scan() {
     # TODO(wgtdkp): verify the result
     send_command_to_commissioner "energy report"
     stop_commissioner
+
+    stop_otbr
 }
