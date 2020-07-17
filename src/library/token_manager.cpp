@@ -374,7 +374,7 @@ Error TokenManager::PrepareSigningContent(ByteArray &aContent, const coap::Messa
     bool          isPendingSet = false;
     ByteArray     content;
 
-    VerifyOrExit(aMessage.GetUriPath(uri) == ErrorCode::kNone,
+    VerifyOrExit(aMessage.GetUriPath(signingUri) == ErrorCode::kNone,
                  error = ERROR_INVALID_ARGS("the CoAP message has no valid URI Path option"));
 
     isActiveSet  = signingUri == uri::kMgmtActiveSet;
