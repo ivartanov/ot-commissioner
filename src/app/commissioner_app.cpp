@@ -835,6 +835,7 @@ Error CommissionerApp::SetRegistrarHostname(const std::string &aHostname)
 {
     Error      error;
     BbrDataset bbrDataset;
+    BbrDataset bbrDatasetWithRegAddr;
 
     VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
     VerifyOrExit(IsCcmMode(), error = ERROR_INVALID_STATE("the commissioner is not in CCM Mode"));
@@ -843,8 +844,12 @@ Error CommissionerApp::SetRegistrarHostname(const std::string &aHostname)
     bbrDataset.mPresentFlags |= BbrDataset::kRegistrarHostnameBit;
 
     SuccessOrExit(error = mCommissioner->SetBbrDataset(bbrDataset));
+    SuccessOrExit(error = mCommissioner->GetBbrDataset(bbrDatasetWithRegAddr, BbrDataset::kRegistrarIpv6AddrBit));
+    VerifyOrExit(bbrDatasetWithRegAddr.mPresentFlags & BbrDataset::kRegistrarIpv6AddrBit,
+                 error = ERROR_BAD_FORMAT("cannot resolve the Registrar Hostname: {}", aHostname));
 
     MergeDataset(mBbrDataset, bbrDataset);
+    MergeDataset(mBbrDataset, bbrDatasetWithRegAddr);
 
 exit:
     return error;
