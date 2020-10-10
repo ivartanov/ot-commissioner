@@ -26,15 +26,12 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_executable(commissioner-cli)
-
-target_sources(commissioner-cli
-    PRIVATE
-        console.cpp
-        console.hpp
-        interpreter.cpp
-        interpreter.hpp
-        main.cpp
+add_executable(commissioner-cli
+    console.cpp
+    console.hpp
+    interpreter.cpp
+    interpreter.hpp
+    main.cpp
 )
 
 target_include_directories(commissioner-cli
@@ -45,8 +42,9 @@ target_include_directories(commissioner-cli
 target_link_libraries(commissioner-cli
     PRIVATE
         commissioner-app
-        readline
         ncurses
+        pthread
+        readline
 )
 
 target_compile_definitions(commissioner-cli

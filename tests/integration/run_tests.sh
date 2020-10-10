@@ -38,6 +38,7 @@
 ##
 
 . "$(dirname "$0")"/test_announce_begin.sh
+. "$(dirname "$0")"/test_ccm.sh
 . "$(dirname "$0")"/test_cli.sh
 . "$(dirname "$0")"/test_discover.sh
 . "$(dirname "$0")"/test_energy_scan.sh
@@ -74,9 +75,9 @@ run_test_case() {
         echo "${output}"
         echo "------ test output end ------"
 
-        echo "------ otbr log begin ------"
-        cat "${OTBR_LOG}"
-        echo "------ otbr log end ------"
+        echo "------ ot-daemon log begin ------"
+        cat "${OT_DAEMON_LOG}"
+        echo "------ ot-daemon log end ------"
 
         echo "------ commissioner daemon log begin ------"
         cat "${COMMISSIONER_DAEMON_LOG}"

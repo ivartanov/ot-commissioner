@@ -87,11 +87,6 @@ exit:
     }
 }
 
-void JoinerSession::Disconnect()
-{
-    mDtlsSession->Disconnect(ERROR_ABORTED("the joiner session was aborted"));
-}
-
 ByteArray JoinerSession::GetJoinerIid() const
 {
     auto joinerIid = mJoinerId;
@@ -185,6 +180,11 @@ void JoinerSession::HandleJoinFin(const coap::Request &aJoinFin)
              vendorSwVersionTlv->GetValueAsString(), utils::Hex(vendorStackVersionTlv->GetValue()), provisioningUrl,
              utils::Hex(vendorData));
 
+#if OT_COMM_CONFIG_REFERENCE_DEVICE_ENABLE
+    LOG_INFO(LOG_REGION_THCI, "session(={}) received JOIN_FIN.req: {}", static_cast<void *>(this),
+             utils::Hex(aJoinFin.GetPayload()));
+#endif
+
     // Validation done, request commissioning by user.
     accepted = mCommImpl.mCommissionerHandler.OnJoinerFinalize(
         mJoinerId, vendorNameTlv->GetValueAsString(), vendorModelTlv->GetValueAsString(),
@@ -198,12 +198,10 @@ exit:
                  error.ToString());
     }
 
-    IgnoreError(SendJoinFinResponse(aJoinFin, accepted));
-    LOG_INFO(LOG_REGION_JOINER_SESSION, "session(={}) sent JOIN_FIN.rsp: accepted={}", static_cast<void *>(this),
-             accepted);
+    SendJoinFinResponse(aJoinFin, accepted);
 }
 
-Error JoinerSession::SendJoinFinResponse(const coap::Request &aJoinFinReq, bool aAccept)
+void JoinerSession::SendJoinFinResponse(const coap::Request &aJoinFinReq, bool aAccept)
 {
     Error          error;
     coap::Response joinFin{coap::Type::kAcknowledgment, coap::Code::kChanged};
@@ -212,8 +210,19 @@ Error JoinerSession::SendJoinFinResponse(const coap::Request &aJoinFinReq, bool 
     joinFin.SetSubType(MessageSubType::kJoinFinResponse);
     SuccessOrExit(error = mCoap.SendResponse(aJoinFinReq, joinFin));
 
+    LOG_INFO(LOG_REGION_JOINER_SESSION, "session(={}) sent JOIN_FIN.rsp: accepted={}", static_cast<void *>(this),
+             aAccept);
+
+#if OT_COMM_CONFIG_REFERENCE_DEVICE_ENABLE
+    LOG_INFO(LOG_REGION_THCI, "session(={}) sent JOIN_FIN.rsp: {}", static_cast<void *>(this),
+             utils::Hex(joinFin.GetPayload()));
+#endif
+
 exit:
-    return error;
+    if (error != ErrorCode::kNone)
+    {
+        LOG_WARN(LOG_REGION_JOINER_SESSION, "session(={}) sent JOIN_FIN.rsp failed: %s", error.ToString());
+    }
 }
 
 JoinerSession::RelaySocket::RelaySocket(JoinerSession &aJoinerSession,
@@ -232,7 +241,7 @@ JoinerSession::RelaySocket::RelaySocket(JoinerSession &aJoinerSession,
 
     mIsConnected = true;
 
-    fail = event_assign(&mEvent, mEventBase, -1, EV_PERSIST | EV_READ | EV_WRITE | EV_ET, HandleEvent, this);
+    fail = event_assign(&mEvent, mEventBase, -1, EV_PERSIST, HandleEvent, this);
     VerifyOrDie(fail == 0);
     VerifyOrDie((fail = event_add(&mEvent, nullptr)) == 0);
 }

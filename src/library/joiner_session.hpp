@@ -89,8 +89,6 @@ public:
 
     void Connect();
 
-    void Disconnect();
-
     DtlsSession::State GetState() const { return mDtlsSession->GetState(); }
 
     bool Disabled() const { return mDtlsSession->GetState() == DtlsSession::State::kOpen; }
@@ -140,7 +138,7 @@ private:
 
     Error SendRlyTx(const ByteArray &aDtlsMessage, bool aIncludeKek);
     void  HandleJoinFin(const coap::Request &aJoinFin);
-    Error SendJoinFinResponse(const coap::Request &aJoinFinReq, bool aAccept);
+    void  SendJoinFinResponse(const coap::Request &aJoinFinReq, bool aAccept);
 
     CommissionerImpl &mCommImpl;
 
