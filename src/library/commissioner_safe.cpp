@@ -513,10 +513,10 @@ Error CommissionerSafe::RequestToken(ByteArray &aSignedToken, const std::string 
     return pro.get_future().get();
 }
 
-Error CommissionerSafe::SetToken(const ByteArray &aSignedToken, const ByteArray &aSignerCert)
+Error CommissionerSafe::SetToken(const ByteArray &aSignedToken)
 {
     std::promise<Error> pro;
-    PushAsyncRequest([&]() { pro.set_value(mImpl->SetToken(aSignedToken, aSignerCert)); });
+    PushAsyncRequest([&]() { pro.set_value(mImpl->SetToken(aSignedToken)); });
     return pro.get_future().get();
 }
 
