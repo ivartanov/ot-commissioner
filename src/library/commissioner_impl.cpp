@@ -1267,7 +1267,7 @@ void CommissionerImpl::SendKeepAlive(Timer &, bool aKeepAlive)
 #if OT_COMM_CONFIG_CCM_ENABLE
     if (IsCcmMode())
     {
-        SuccessOrExit(error = SignRequest(request));
+        SuccessOrExit(error = SignRequest(request, tlv::Scope::kMeshCoP, /* aAppendToken */ false));
     }
 #endif
 
@@ -1286,7 +1286,7 @@ exit:
 }
 
 #if OT_COMM_CONFIG_CCM_ENABLE
-Error CommissionerImpl::SignRequest(coap::Request &aRequest, tlv::Scope aScope)
+Error CommissionerImpl::SignRequest(coap::Request &aRequest, tlv::Scope aScope, bool aAppendToken)
 {
     Error     error;
     ByteArray signature;
@@ -1295,7 +1295,10 @@ Error CommissionerImpl::SignRequest(coap::Request &aRequest, tlv::Scope aScope)
 
     SuccessOrExit(error = mTokenManager.SignMessage(signature, aRequest));
 
-    SuccessOrExit(error = AppendTlv(aRequest, {tlv::Type::kCommissionerToken, mTokenManager.GetToken(), aScope}));
+    if (aAppendToken)
+    {
+        SuccessOrExit(error = AppendTlv(aRequest, {tlv::Type::kCommissionerToken, mTokenManager.GetToken(), aScope}));
+    }
     SuccessOrExit(error = AppendTlv(aRequest, {tlv::Type::kCommissionerSignature, signature, aScope}));
 
 exit:
