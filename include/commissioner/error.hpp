@@ -147,9 +147,15 @@ enum class ErrorCode : int
     kRejected = 16,
 
     /**
+     * Unsupported command syntax encountered or mutually exclusive
+     * parameters used.
+     */
+    kSyntaxViolation = 17,
+
+    /**
      * The error is out of the address space of OT Commissioner.
      */
-    kUnknown = 17,
+    kUnknown = 18,
 };
 
 /**

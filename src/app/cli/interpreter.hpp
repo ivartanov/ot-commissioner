@@ -45,6 +45,8 @@ namespace ot {
 
 namespace commissioner {
 
+using NidArray = std::vector<uint64_t>;
+
 class Job;
 
 class Interpreter
@@ -100,6 +102,7 @@ private:
 
     using JobEvaluator = std::function<Value(Interpreter *, CommissionerApp &, const Expression &)>;
     using StringArray  = std::vector<std::string>;
+
 private:
     Expression Read();
 

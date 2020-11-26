@@ -72,6 +72,8 @@
     Error { ErrorCode::kInvalidState, fmt::format(FMT_STRING((aFormat)), ##__VA_ARGS__) }
 #define ERROR_REJECTED(aFormat, ...) \
     Error { ErrorCode::kRejected, fmt::format(FMT_STRING((aFormat)), ##__VA_ARGS__) }
+#define ERROR_INVALID_SYNTAX(aFormat, ...) \
+    Error { ErrorCode::kSyntaxViolation, fmt::format(FMT_STRING((aFormat)), ##__VA_ARGS__) }
 #define ERROR_UNKNOWN(aFormat, ...) \
     Error { ErrorCode::kUnknown, fmt::format(FMT_STRING((aFormat)), ##__VA_ARGS__) }
 
