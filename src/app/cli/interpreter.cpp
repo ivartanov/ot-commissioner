@@ -40,27 +40,27 @@
 #include "common/error_macros.hpp"
 #include "common/utils.hpp"
 
-#define KEYWORD_NETWORK    "--nwk"
-#define KEYWORD_DOMAIN     "--dom"
-#define KEYWORD_EXPORT     "--export"
-#define KEYWORD_IMPORT     "--import"
+#define KEYWORD_NETWORK "--nwk"
+#define KEYWORD_DOMAIN "--dom"
+#define KEYWORD_EXPORT "--export"
+#define KEYWORD_IMPORT "--import"
 
-#define ALIAS_THIS         "this"
-#define ALIAS_ALL          "all"
-#define ALIAS_OTHERS       "others"
+#define ALIAS_THIS "this"
+#define ALIAS_ALL "all"
+#define ALIAS_OTHERS "others"
 
-#define SYNTAX_NO_PARAM        "keyword {} used with no parameter"
-#define SYNTAX_UNKNOWN_KEY     "unknown keyword {} encountered"
-#define SYNTAX_MULTI_DOMAIN    "multiple domain specification not allowed"
-#define SYNTAX_MULTI_EXPORT    "multiple files not allowed for --export"
-#define SYNTAX_MULTI_IMPORT    "multiple files not allowed for --import"
-#define SYNTAX_NWK_DOM_MUTUAL  "--nwk and --dom are mutually exclusive"
-#define SYNTAX_EXP_IMP_MUTUAL  "--export and --import are mutually exclusive"
-#define SYNTAX_NOT_SUPPORTED   "{} is not supported by the command"
-#define SYNTAX_GROUP_ALIAS     "{} must not combine with any other network alias"
+#define SYNTAX_NO_PARAM "keyword {} used with no parameter"
+#define SYNTAX_UNKNOWN_KEY "unknown keyword {} encountered"
+#define SYNTAX_MULTI_DOMAIN "multiple domain specification not allowed"
+#define SYNTAX_MULTI_EXPORT "multiple files not allowed for --export"
+#define SYNTAX_MULTI_IMPORT "multiple files not allowed for --import"
+#define SYNTAX_NWK_DOM_MUTUAL "--nwk and --dom are mutually exclusive"
+#define SYNTAX_EXP_IMP_MUTUAL "--export and --import are mutually exclusive"
+#define SYNTAX_NOT_SUPPORTED "{} is not supported by the command"
+#define SYNTAX_GROUP_ALIAS "{} must not combine with any other network alias"
 
-#define RUNTIME_EMPTY_NIDS     "specified alias(es) resolved to empty list of networks"
-#define RUNTIME_AMBIGUOUS      "network alias {} is ambiguous"
+#define RUNTIME_EMPTY_NIDS "specified alias(es) resolved to empty list of networks"
+#define RUNTIME_AMBIGUOUS "network alias {} is ambiguous"
 
 namespace ot {
 
@@ -152,17 +152,18 @@ const std::map<std::string, std::string> &Interpreter::mUsageMap = *new std::map
     {"help", "help [<command>]"},
 };
 
-const std::vector<Interpreter::StringArray> &Interpreter::mMultiNetworkSupported = *new std::vector<Interpreter::StringArray>{
-    Interpreter::StringArray{"start"},
-    Interpreter::StringArray{"stop"},
-    Interpreter::StringArray{"active"},
-    Interpreter::StringArray{"sessionid"},
-    Interpreter::StringArray{"bbrdataset", "get"},
-    Interpreter::StringArray{"commdataset", "get"},
-    Interpreter::StringArray{"opdataset", "get", "active"},
-    Interpreter::StringArray{"opdataset", "get", "pending"},
-    Interpreter::StringArray{"opdataset", "set", "securitypolicy"},
-};
+const std::vector<Interpreter::StringArray> &Interpreter::mMultiNetworkSupported =
+    *new std::vector<Interpreter::StringArray>{
+        Interpreter::StringArray{"start"},
+        Interpreter::StringArray{"stop"},
+        Interpreter::StringArray{"active"},
+        Interpreter::StringArray{"sessionid"},
+        Interpreter::StringArray{"bbrdataset", "get"},
+        Interpreter::StringArray{"commdataset", "get"},
+        Interpreter::StringArray{"opdataset", "get", "active"},
+        Interpreter::StringArray{"opdataset", "get", "pending"},
+        Interpreter::StringArray{"opdataset", "set", "securitypolicy"},
+    };
 
 const std::vector<Interpreter::StringArray> &Interpreter::mExportSupported = *new std::vector<Interpreter::StringArray>{
     Interpreter::StringArray{"bbrdataset", "get"},
@@ -176,14 +177,14 @@ const std::vector<Interpreter::StringArray> &Interpreter::mImportSupported = *ne
     Interpreter::StringArray{"opdataset", "set", "pending"},
 };
 
-const std::map<std::string, Interpreter::JobEvaluator> &Interpreter::mJobEvaluatorMap = *new std::map<std::string, Interpreter::JobEvaluator>{
-    {"start", &Interpreter::ProcessStartJob},
-    {"stop", &Interpreter::ProcessStopJob},
-    {"commdataset", &Interpreter::ProcessCommDatasetJob},
-    {"opdataset", &Interpreter::ProcessOpDatasetJob},
-    {"bbrdataset", &Interpreter::ProcessBbrDatasetJob},
-};
-
+const std::map<std::string, Interpreter::JobEvaluator> &Interpreter::mJobEvaluatorMap =
+    *new std::map<std::string, Interpreter::JobEvaluator>{
+        {"start", &Interpreter::ProcessStartJob},
+        {"stop", &Interpreter::ProcessStopJob},
+        {"commdataset", &Interpreter::ProcessCommDatasetJob},
+        {"opdataset", &Interpreter::ProcessOpDatasetJob},
+        {"bbrdataset", &Interpreter::ProcessBbrDatasetJob},
+    };
 
 template <typename T> static std::string ToHex(T aInteger)
 {
@@ -319,14 +320,12 @@ Interpreter::Value Interpreter::EvaluateMultiNetwork(const Expression &aExpr)
     NidArray    nids;
     Error       error;
 
-    error = ReParseMultiNetworkSyntax(aExpr, retExpr, nwkAliases, domAliases, exportFiles,
-                                      importFiles);
+    error = ReParseMultiNetworkSyntax(aExpr, retExpr, nwkAliases, domAliases, exportFiles, importFiles);
     SuccessOrExit(error);
     // domain must be single or omitted
     VerifyOrExit(domAliases.size() < 2, error = ERROR_INVALID_SYNTAX(SYNTAX_MULTI_DOMAIN));
     // network and domain must not be specified simultaneously
-    VerifyOrExit(nwkAliases.size() == 0 || domAliases.size() == 0,
-                 error = ERROR_INVALID_SYNTAX(SYNTAX_NWK_DOM_MUTUAL));
+    VerifyOrExit(nwkAliases.size() == 0 || domAliases.size() == 0, error = ERROR_INVALID_SYNTAX(SYNTAX_NWK_DOM_MUTUAL));
     // export file specification must be single or omitted
     VerifyOrExit(exportFiles.size() < 2, error = ERROR_INVALID_SYNTAX(SYNTAX_MULTI_EXPORT));
     // import file specification must be single or omitted
@@ -383,24 +382,21 @@ Interpreter::Value Interpreter::EvaluateMultiNetwork(const Expression &aExpr)
     }
     else
     {
-        assert(false); // something went wrong
+        ASSERT(false); // something went wrong
     }
 
     VerifyOrExit(nids.size() > 0, ERROR_INVALID_ARGS(RUNTIME_EMPTY_NIDS));
 
     // create pool of jobs by network ids
 
-
     // run pool
-
 
     // post-process collected values
 exit:
     return error;
 }
 
-bool Interpreter::IsSyntaxSupported(const std::vector<StringArray>& aArr,
-                                    const Expression & aExpr) const
+bool Interpreter::IsSyntaxSupported(const std::vector<StringArray> &aArr, const Expression &aExpr) const
 {
     for (auto commandCase : aArr)
     {
@@ -422,23 +418,28 @@ bool Interpreter::IsSyntaxSupported(const std::vector<StringArray>& aArr,
 }
 
 Error Interpreter::ReParseMultiNetworkSyntax(const Expression &aExpr,
-                                             Expression  &aRetExpr,
-                                             StringArray &aNwkAliases,
-                                             StringArray &aDomAliases,
-                                             StringArray &aExport,
-                                             StringArray &aImport)
+                                             Expression &      aRetExpr,
+                                             StringArray &     aNwkAliases,
+                                             StringArray &     aDomAliases,
+                                             StringArray &     aExport,
+                                             StringArray &     aImport)
 {
-    enum {COMMAND, NETWORK, DOMAIN, EXPORT, IMPORT};
-    StringArray *arrays[] = {
-        [COMMAND] = &aRetExpr,
-        [NETWORK] = &aNwkAliases,
-        [DOMAIN]  = &aDomAliases,
-        [EXPORT]  = &aExport,
-        [IMPORT]  = &aImport
+    enum
+    {
+        ST_COMMAND,
+        ST_NETWORK,
+        ST_DOMAIN,
+        ST_EXPORT,
+        ST_IMPORT
     };
-    Error error;
+    StringArray *arrays[] = {[ST_COMMAND] = &aRetExpr,
+                             [ST_NETWORK] = &aNwkAliases,
+                             [ST_DOMAIN]  = &aDomAliases,
+                             [ST_EXPORT]  = &aExport,
+                             [ST_IMPORT]  = &aImport};
+    Error        error;
 
-    uint8_t     state = COMMAND;
+    uint8_t     state = ST_COMMAND;
     bool        inKey = false;
     std::string lastKey;
 
@@ -459,20 +460,20 @@ Error Interpreter::ReParseMultiNetworkSyntax(const Expression &aExpr,
         {
             VerifyOrExit(!inKey, error = ERROR_INVALID_SYNTAX(SYNTAX_NO_PARAM, lastKey));
             if (word == KEYWORD_NETWORK)
-                state = NETWORK;
+                state = ST_NETWORK;
             else if (word == KEYWORD_DOMAIN)
-                state = DOMAIN;
+                state = ST_DOMAIN;
             else if (word == KEYWORD_EXPORT)
-                state = EXPORT;
+                state = ST_EXPORT;
             else if (word == KEYWORD_IMPORT)
-                state = IMPORT;
+                state = ST_IMPORT;
             else
             {
                 error = ERROR_INVALID_SYNTAX(SYNTAX_UNKNOWN_KEY, word);
                 goto exit;
             }
             lastKey = word;
-            inKey = true;
+            inKey   = true;
         }
         else
         {
@@ -1333,7 +1334,6 @@ Interpreter::Value Interpreter::ProcessBbrDatasetJob(CommissionerApp &aCommissio
 
     return value;
 }
-
 
 void Interpreter::BorderAgentHandler(const BorderAgent *aBorderAgent, const Error &aError)
 {
