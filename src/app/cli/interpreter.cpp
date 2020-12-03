@@ -582,8 +582,13 @@ Interpreter::Expression Interpreter::ParseExpression(const std::string &aLiteral
 
 Interpreter::Value Interpreter::ProcessStart(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
-    return ProcessStartJob(commissioner, aExpr);
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
+
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessStartJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessStartJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
@@ -607,8 +612,13 @@ exit:
 
 Interpreter::Value Interpreter::ProcessStop(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
-    return ProcessStopJob(commissioner, aExpr);
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
+
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessStopJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessStopJob(CommissionerAppPtr &aCommissioner, const Expression &)
@@ -619,8 +629,13 @@ Interpreter::Value Interpreter::ProcessStopJob(CommissionerAppPtr &aCommissioner
 
 Interpreter::Value Interpreter::ProcessActive(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
-    return ProcessActiveJob(commissioner, aExpr);
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
+
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessActiveJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessActiveJob(CommissionerAppPtr &aCommissioner, const Expression &)
@@ -630,9 +645,10 @@ Interpreter::Value Interpreter::ProcessActiveJob(CommissionerAppPtr &aCommission
 
 Interpreter::Value Interpreter::ProcessToken(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS("too few arguments"));
 
     if (CaseInsensitiveEqual(aExpr[1], "request"))
@@ -667,9 +683,10 @@ exit:
 
 Interpreter::Value Interpreter::ProcessNetwork(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS("too few arguments"));
 
     if (CaseInsensitiveEqual(aExpr[1], "save"))
@@ -692,8 +709,13 @@ exit:
 
 Interpreter::Value Interpreter::ProcessSessionId(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
-    return ProcessSessionIdJob(commissioner, aExpr);
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
+
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessSessionIdJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessSessionIdJob(CommissionerAppPtr &aCommissioner, const Expression &)
@@ -727,8 +749,9 @@ Interpreter::Value Interpreter::ProcessBorderAgent(const Expression &aExpr)
     }
     else if (CaseInsensitiveEqual(aExpr[1], "get"))
     {
-        CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
+        CommissionerAppPtr commissioner = nullptr;
 
+        SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
         VerifyOrExit(aExpr.size() >= 3, value = ERROR_INVALID_ARGS("too few arguments"));
 
         if (CaseInsensitiveEqual(aExpr[2], "locator"))
@@ -763,12 +786,13 @@ exit:
 
 Interpreter::Value Interpreter::ProcessJoiner(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
     JoinerType         type;
+    CommissionerAppPtr commissioner = nullptr;
 
     VerifyOrExit(aExpr.size() >= 3, value = ERROR_INVALID_ARGS("too few arguments"));
     SuccessOrExit(value = GetJoinerType(type, aExpr[2]));
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
 
     if (CaseInsensitiveEqual(aExpr[1], "enable"))
     {
@@ -841,11 +865,13 @@ exit:
 
 Interpreter::Value Interpreter::ProcessCommDataset(const Expression &aExpr)
 {
-    // temporary stub
-    // TODO: implement jobs
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
-    return ProcessCommDatasetJob(commissioner, aExpr);
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessCommDatasetJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessCommDatasetJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
@@ -878,11 +904,13 @@ exit:
 
 Interpreter::Value Interpreter::ProcessOpDataset(const Expression &aExpr)
 {
-    // temporary stub
-    // TODO: implement jobs
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
-    return ProcessOpDatasetJob(commissioner, aExpr);
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessOpDatasetJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessOpDatasetJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
@@ -1094,11 +1122,13 @@ exit:
 
 Interpreter::Value Interpreter::ProcessBbrDataset(const Expression &aExpr)
 {
-    // temporary stub
-    // TODO: implement jobs
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
-    return ProcessBbrDatasetJob(commissioner, aExpr);
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessBbrDatasetJob(commissioner, aExpr);
+exit:
+    return value;
 }
 
 Interpreter::Value Interpreter::ProcessBbrDatasetJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
@@ -1184,21 +1214,22 @@ exit:
 
 Interpreter::Value Interpreter::ProcessReenroll(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS("too few arguments"));
     SuccessOrExit(value = commissioner->Reenroll(aExpr[1]));
-
 exit:
     return value;
 }
 
 Interpreter::Value Interpreter::ProcessDomainReset(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS("too few arguments"));
     SuccessOrExit(value = commissioner->DomainReset(aExpr[1]));
 
@@ -1208,57 +1239,56 @@ exit:
 
 Interpreter::Value Interpreter::ProcessMigrate(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
     VerifyOrExit(aExpr.size() >= 3, value = ERROR_INVALID_ARGS("too few arguments"));
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     SuccessOrExit(value = commissioner->Migrate(aExpr[1], aExpr[2]));
-
 exit:
     return value;
 }
 
 Interpreter::Value Interpreter::ProcessMlr(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
+    uint32_t           timeout;
     Value              value;
-
-    uint32_t timeout;
+    CommissionerAppPtr commissioner = nullptr;
 
     VerifyOrExit(aExpr.size() >= 3, value = ERROR_INVALID_ARGS("too few arguments"));
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     SuccessOrExit(value = ParseInteger(timeout, aExpr.back()));
     SuccessOrExit(value = commissioner->RegisterMulticastListener({aExpr.begin() + 1, aExpr.end() - 1},
                                                                   CommissionerApp::Seconds(timeout)));
-
 exit:
     return value;
 }
 
 Interpreter::Value Interpreter::ProcessAnnounce(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
+    uint32_t           channelMask;
+    uint8_t            count;
+    uint16_t           period;
     Value              value;
-
-    uint32_t channelMask;
-    uint8_t  count;
-    uint16_t period;
+    CommissionerAppPtr commissioner = nullptr;
 
     VerifyOrExit(aExpr.size() >= 5, value = ERROR_INVALID_ARGS("too few arguments"));
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     SuccessOrExit(value = ParseInteger(channelMask, aExpr[1]));
     SuccessOrExit(value = ParseInteger(count, aExpr[2]));
     SuccessOrExit(value = ParseInteger(period, aExpr[3]));
     SuccessOrExit(value =
                       commissioner->AnnounceBegin(channelMask, count, CommissionerApp::MilliSeconds(period), aExpr[4]));
-
 exit:
     return value;
 }
 
 Interpreter::Value Interpreter::ProcessPanId(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS("too few arguments"));
 
     if (CaseInsensitiveEqual(aExpr[1], "query"))
@@ -1290,9 +1320,10 @@ exit:
 
 Interpreter::Value Interpreter::ProcessEnergy(const Expression &aExpr)
 {
-    CommissionerAppPtr commissioner = mJobManager->GetSelectedCommissioner();
     Value              value;
+    CommissionerAppPtr commissioner = nullptr;
 
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
     VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS("too few arguments"));
 
     if (CaseInsensitiveEqual(aExpr[1], "scan"))
