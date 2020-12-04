@@ -9,20 +9,28 @@
 
 #if !defined(_WIN32) && !defined(WIN32)
 
-#include <sys/stat.h>
 #include <semaphore.h>
+#include <sys/stat.h>
 
-namespace tg_os {
-    namespace sem {
+namespace ot {
 
-        /**
-         * OS dependent semaphore impl
-         */
-        struct semaphore {
-            sem_t * platform; /**< posix semaphore type */
-        };
-    }
-}
+namespace os {
+
+namespace sem {
+
+/**
+ * OS dependent semaphore impl
+ */
+struct semaphore
+{
+    sem_t *platform; /**< posix semaphore type */
+};
+
+} // namespace sem
+
+} // namespace os
+
+} // namespace ot
 
 #endif
 
