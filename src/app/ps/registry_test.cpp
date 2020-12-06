@@ -46,6 +46,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        "",
                        0,
                        0,
+                       "",
+                       0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kNetworkNameBit |
                            BorderAgent::kExtendedPanIdBit};
         REQUIRE(reg.add(ba) == registry_status::REG_SUCCESS);
@@ -74,6 +76,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        ByteArray{},
                        "dom2",
                        0,
+                       0,
+                       "",
                        0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kNetworkNameBit |
                            BorderAgent::kExtendedPanIdBit | BorderAgent::kDomainNameBit};
@@ -108,6 +112,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        "",
                        0,
                        0,
+                       "",
+                       0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kVendorNameBit};
         REQUIRE(reg.add(ba) == registry_status::REG_ERROR);
     }
@@ -140,6 +146,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        "",
                        0,
                        0,
+                       "",
+                       0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kNetworkNameBit |
                            BorderAgent::kExtendedPanIdBit | BorderAgent::kVendorNameBit};
         REQUIRE(reg.add(ba) == registry_status::REG_SUCCESS);
@@ -169,6 +177,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        "",
                        0,
                        0,
+                       "",
+                       0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kNetworkNameBit |
                            BorderAgent::kExtendedPanIdBit | BorderAgent::kVendorNameBit};
         REQUIRE(reg.add(ba) == registry_status::REG_SUCCESS);
@@ -194,6 +204,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        ByteArray{},
                        "dom2",
                        0,
+                       0,
+                       "",
                        0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kNetworkNameBit |
                            BorderAgent::kExtendedPanIdBit | BorderAgent::kVendorNameBit | BorderAgent::kDomainNameBit};
@@ -223,6 +235,8 @@ TEST_CASE("create-br-from-ba", "[reg_json]")
                        ByteArray{},
                        "dom1", // New domain, will have id == 1
                        0,
+                       0,
+                       "",
                        0,
                        BorderAgent::kAddrBit | BorderAgent::kPortBit | BorderAgent::kNetworkNameBit |
                            BorderAgent::kExtendedPanIdBit | BorderAgent::kVendorNameBit | BorderAgent::kDomainNameBit};
