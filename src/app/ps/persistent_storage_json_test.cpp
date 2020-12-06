@@ -67,11 +67,11 @@ TEST_CASE("Add domain", "[ps_json]")
 
     domain_id new_id;
 
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom1", {"nwk1"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom1"}, new_id) == ps_status::PS_SUCCESS);
     REQUIRE(new_id.id == 0);
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom2", {"nwk2"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom2"}, new_id) == ps_status::PS_SUCCESS);
     REQUIRE(new_id.id == 1);
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom3", {"nwk3"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom3"}, new_id) == ps_status::PS_SUCCESS);
     REQUIRE(new_id.id == 2);
 
     REQUIRE(psj.close() == ps_status::PS_SUCCESS);
@@ -279,11 +279,11 @@ TEST_CASE("Get domain, not empty", "[ps_json]")
 
     domain_id new_id;
 
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom1", {"nwk1"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom1"}, new_id) == ps_status::PS_SUCCESS);
     REQUIRE(new_id.id == 0);
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom2", {"nwk2"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom2"}, new_id) == ps_status::PS_SUCCESS);
     REQUIRE(new_id.id == 1);
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom3", {"nwk3"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom3"}, new_id) == ps_status::PS_SUCCESS);
     REQUIRE(new_id.id == 2);
 
     domain ret_val;
@@ -292,7 +292,6 @@ TEST_CASE("Get domain, not empty", "[ps_json]")
     REQUIRE(psj.get(domain_id(0), ret_val) == ps_status::PS_SUCCESS);
     REQUIRE(ret_val.id.id == 0);
     REQUIRE(ret_val.name == "dom1");
-    REQUIRE(ret_val.networks == std::vector<std::string>{"nwk1"});
 
     REQUIRE(psj.close() == ps_status::PS_SUCCESS);
 }
@@ -418,12 +417,12 @@ TEST_CASE("Upd domain", "[ps_json]")
     // Add initial data
     domain_id new_id;
 
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom1", {"nwk1"}}, new_id) == ps_status::PS_SUCCESS);
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom2", {"nwk2"}}, new_id) == ps_status::PS_SUCCESS);
-    REQUIRE(psj.add(domain{EMPTY_ID, "dom3", {"nwk3"}}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom1"}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom2"}, new_id) == ps_status::PS_SUCCESS);
+    REQUIRE(psj.add(domain{EMPTY_ID, "dom3"}, new_id) == ps_status::PS_SUCCESS);
 
     // Test actions
-    domain new_val{EMPTY_ID, "dom_upd", {"nwk_upd"}};
+    domain new_val{EMPTY_ID, "dom_upd"};
 
     REQUIRE(psj.update(new_val) == ps_status::PS_NOT_FOUND);
     new_val.id = 1;
@@ -434,7 +433,6 @@ TEST_CASE("Upd domain", "[ps_json]")
     REQUIRE(psj.get(domain_id(1), ret_val) == ps_status::PS_SUCCESS);
     REQUIRE(ret_val.id.id == 1);
     REQUIRE(ret_val.name == "dom_upd");
-    REQUIRE(ret_val.networks == std::vector<std::string>{"nwk_upd"});
 
     REQUIRE(psj.close() == ps_status::PS_SUCCESS);
 }
