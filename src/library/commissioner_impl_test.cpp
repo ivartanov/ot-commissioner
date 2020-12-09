@@ -44,7 +44,8 @@
 namespace ot {
 
 namespace commissioner {
-
+// GetMeshLocalAddr() moved into CommissionerApp
+#if 0
 TEST_CASE("mesh-local-address-basic", "[mesh-local-addr]")
 {
     std::string meshLocalAddr;
@@ -73,6 +74,7 @@ TEST_CASE("mesh-local-address-invalid-args", "[mesh-local-addr]")
         REQUIRE(Commissioner::GetMeshLocalAddr(meshLocalAddr, "fd00::48", 0xBBCC) == ErrorCode::kInvalidArgs);
     }
 }
+#endif
 
 // This teat case is from section 8.4.1.2.2 of the Thread 1.2.0 specification.
 TEST_CASE("pskc-test-vector-from-thread-1.2.0-spec", "[pskc]")

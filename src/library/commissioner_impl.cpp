@@ -114,32 +114,6 @@ void Commissioner::AddJoiner(ByteArray &aSteeringData, const ByteArray &aJoinerI
     ComputeBloomFilter(aSteeringData, aJoinerId);
 }
 
-Error Commissioner::GetMeshLocalAddr(std::string &      aMeshLocalAddr,
-                                     const std::string &aMeshLocalPrefix,
-                                     uint16_t           aLocator16)
-{
-    static const size_t kThreadMeshLocalPrefixLength = 8;
-    Error               error;
-    ByteArray           rawAddr;
-    Address             addr;
-
-    SuccessOrExit(error = Ipv6PrefixFromString(rawAddr, aMeshLocalPrefix));
-    VerifyOrExit(rawAddr.size() == kThreadMeshLocalPrefixLength,
-                 error = ERROR_INVALID_ARGS("Thread Mesh local prefix length={} != {}", rawAddr.size(),
-                                            kThreadMeshLocalPrefixLength));
-
-    utils::Encode<uint16_t>(rawAddr, 0x0000);
-    utils::Encode<uint16_t>(rawAddr, 0x00FF);
-    utils::Encode<uint16_t>(rawAddr, 0xFE00);
-    utils::Encode<uint16_t>(rawAddr, aLocator16);
-
-    SuccessOrExit(addr.Set(rawAddr));
-    aMeshLocalAddr = addr.ToString();
-
-exit:
-    return error;
-}
-
 CommissionerImpl::CommissionerImpl(CommissionerHandler &aHandler, struct event_base *aEventBase)
     : mState(State::kDisabled)
     , mSessionId(0)

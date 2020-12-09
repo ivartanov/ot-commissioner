@@ -567,6 +567,32 @@ exit:
     return error;
 }
 
+Error CommissionerApp::GetMeshLocalAddr(std::string &      aMeshLocalAddr,
+                                        const std::string &aMeshLocalPrefix,
+                                        uint16_t           aLocator16)
+{
+    static const size_t kThreadMeshLocalPrefixLength = 8;
+    Error               error;
+    ByteArray           rawAddr;
+    Address             addr;
+
+    SuccessOrExit(error = Ipv6PrefixFromString(rawAddr, aMeshLocalPrefix));
+    VerifyOrExit(rawAddr.size() == kThreadMeshLocalPrefixLength,
+                 error = ERROR_INVALID_ARGS("Thread Mesh local prefix length={} != {}", rawAddr.size(),
+                                            kThreadMeshLocalPrefixLength));
+
+    utils::Encode<uint16_t>(rawAddr, 0x0000);
+    utils::Encode<uint16_t>(rawAddr, 0x00FF);
+    utils::Encode<uint16_t>(rawAddr, 0xFE00);
+    utils::Encode<uint16_t>(rawAddr, aLocator16);
+
+    SuccessOrExit(addr.Set(rawAddr));
+    aMeshLocalAddr = addr.ToString();
+
+exit:
+    return error;
+}
+
 Error CommissionerApp::GetNetworkMasterKey(ByteArray &aMasterKey)
 {
     Error error;
@@ -984,7 +1010,7 @@ Error CommissionerApp::GetPrimaryBbrAddr(std::string &aAddr)
     std::string meshLocalPrefix;
 
     SuccessOrExit(error = GetMeshLocalPrefix(meshLocalPrefix));
-    SuccessOrExit(error = Commissioner::GetMeshLocalAddr(aAddr, meshLocalPrefix, kPrimaryBbrAloc16));
+    SuccessOrExit(error = GetMeshLocalAddr(aAddr, meshLocalPrefix, kPrimaryBbrAloc16));
 
 exit:
     return error;
