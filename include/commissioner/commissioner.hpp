@@ -1150,19 +1150,6 @@ public:
      * @param[in]      aJoinerId      A Joiner ID.
      */
     static void AddJoiner(ByteArray &aSteeringData, const ByteArray &aJoinerId);
-
-    /**
-     * @brief Get the Thread mesh local address of given 16bits mesh local prefix and locator.
-     *
-     * @param[out] aMeshLocalAddr    The returned mesh local address.
-     * @param[in]  aMeshLocalPrefix  A mesh local prefix of the address.
-     * @param[in]  aLocator16        A 16bits locator.
-     *
-     * @return Error::kNone, succeed; Otherwise, failed.
-     */
-    static Error GetMeshLocalAddr(std::string &      aMeshLocalAddr,
-                                  const std::string &aMeshLocalPrefix,
-                                  uint16_t           aLocator16);
 };
 
 } // namespace commissioner

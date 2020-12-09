@@ -332,7 +332,7 @@ void Interpreter::CancelCommand()
 
 Interpreter::Expression Interpreter::Read()
 {
-    return ParseExpression(mConsole.Read());
+    return ParseExpression(Console::Read());
 }
 
 Interpreter::Value Interpreter::Eval(const Expression &aExpr)
@@ -1168,7 +1168,7 @@ Interpreter::Value Interpreter::ProcessBorderAgent(const Expression &aExpr)
             std::string meshLocalAddr;
             SuccessOrExit(value = commissioner->GetBorderAgentLocator(locator));
             SuccessOrExit(value = commissioner->GetMeshLocalPrefix(meshLocalPrefix));
-            SuccessOrExit(value = Commissioner::GetMeshLocalAddr(meshLocalAddr, meshLocalPrefix, locator));
+            SuccessOrExit(value = commissioner->GetMeshLocalAddr(meshLocalAddr, meshLocalPrefix, locator));
             value = meshLocalAddr;
         }
         else
