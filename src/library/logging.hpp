@@ -47,6 +47,8 @@
 #define LOG_REGION_MGMT "mgmt"
 #define LOG_REGION_SOCKET "socket"
 #define LOG_REGION_TOKEN_MANAGER "token-manager"
+#define LOG_REGION_JOB_MANAGER "job-manager"
+#define LOG_REGION_JOB "job"
 
 #define LOG(aLevel, aRegion, aFmt, ...)                                     \
     do                                                                      \
