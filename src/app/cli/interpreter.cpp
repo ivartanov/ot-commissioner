@@ -806,7 +806,7 @@ Interpreter::Value Interpreter::ProcessDomain(const Expression &aExpr)
             VerifyOrExit(status == RegistryStatus::REG_SUCCESS, value = ERROR_IO_ERROR("lookup failed"));
         }
         json  = domains;
-        value = json.dump(4);
+        value = json.dump(JSON_INDENT_DEFAULT);
     }
     else
     {
@@ -872,7 +872,7 @@ Interpreter::Value Interpreter::ProcessNetwork(const Expression &aExpr)
         VerifyOrExit(mRegistry->get_current_network(nwk) == registry_status::REG_SUCCESS,
                      value = ERROR_NOT_FOUND(NOT_FOUND_STR NETWORK_STR));
         json  = nwk.xpan;
-        value = json.dump(/* indent */ 4);
+        value = json.dump(JSON_INDENT_DEFAULT);
     }
     else
     {
@@ -956,7 +956,7 @@ Interpreter::Value Interpreter::ProcessNetworkList(const Expression &aExpr)
     }
 
     json  = networks;
-    value = json.dump(/* indent */ 4);
+    value = json.dump(JSON_INDENT_DEFAULT);
 
 exit:
     return value;
