@@ -551,7 +551,7 @@ Error NetworkDataFromJson(NetworkData &aNetworkData, const std::string &aJson)
 std::string NetworkDataToJson(const NetworkData &aNetworkData)
 {
     Json json = aNetworkData;
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 Error CommissionerDatasetFromJson(CommissionerDataset &aDataset, const std::string &aJson)
@@ -575,7 +575,7 @@ Error CommissionerDatasetFromJson(CommissionerDataset &aDataset, const std::stri
 std::string CommissionerDatasetToJson(const CommissionerDataset &aDataset)
 {
     Json json = aDataset;
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 Error BbrDatasetFromJson(BbrDataset &aDataset, const std::string &aJson)
@@ -599,7 +599,7 @@ Error BbrDatasetFromJson(BbrDataset &aDataset, const std::string &aJson)
 std::string BbrDatasetToJson(const BbrDataset &aDataset)
 {
     Json json = aDataset;
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 Error ActiveDatasetFromJson(ActiveOperationalDataset &aDataset, const std::string &aJson)
@@ -623,7 +623,7 @@ Error ActiveDatasetFromJson(ActiveOperationalDataset &aDataset, const std::strin
 std::string ActiveDatasetToJson(const ActiveOperationalDataset &aDataset)
 {
     Json json = aDataset;
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 Error PendingDatasetFromJson(PendingOperationalDataset &aDataset, const std::string &aJson)
@@ -647,7 +647,7 @@ Error PendingDatasetFromJson(PendingOperationalDataset &aDataset, const std::str
 std::string PendingDatasetToJson(const PendingOperationalDataset &aDataset)
 {
     Json json = aDataset;
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 Error ConfigFromJson(Config &aConfig, const std::string &aJson)
@@ -671,7 +671,7 @@ Error ConfigFromJson(Config &aConfig, const std::string &aJson)
 std::string EnergyReportToJson(const EnergyReport &aEnergyReport)
 {
     Json json = aEnergyReport;
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 std::string EnergyReportMapToJson(const EnergyReportMap &aEnergyReportMap)
@@ -688,7 +688,7 @@ std::string EnergyReportMapToJson(const EnergyReportMap &aEnergyReportMap)
         VerifyOrDie(deviceAddr.IsValid());
         json[deviceAddr.ToString()] = report;
     }
-    return json.dump(/* indent */ 4);
+    return json.dump(JSON_INDENT_DEFAULT);
 }
 
 Error JsonFromFile(std::string &aJson, std::string &aPath)
@@ -708,7 +708,7 @@ Error JsonFromFile(std::string &aJson, std::string &aPath)
     {
         error = {ErrorCode::kBadFormat, e.what()};
     }
-    aJson = json.dump(4);
+    aJson = json.dump(JSON_INDENT_DEFAULT);
 exit:
     return error;
 }
