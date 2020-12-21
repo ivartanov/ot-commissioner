@@ -1,8 +1,10 @@
 add_executable(job-manager-test
     $<TARGET_OBJECTS:ut-main>
 	test_job_manager.cpp
+	commissioner_app_replace.cpp
 	${PROJECT_SOURCE_DIR}/src/app/cli/interpreter.cpp
 	${PROJECT_SOURCE_DIR}/src/app/ps/registry.cpp
+	${PROJECT_SOURCE_DIR}/src/app/ps/persistent_storage_json.cpp
 	${PROJECT_SOURCE_DIR}/src/app/file_util.cpp
 	${PROJECT_SOURCE_DIR}/src/app/json.cpp
 	${PROJECT_SOURCE_DIR}/src/app/cli/console.cpp
@@ -47,6 +49,7 @@ add_executable(interpreter-test
 	commissioner_app_replace.cpp
 	${PROJECT_SOURCE_DIR}/src/app/cli/interpreter.cpp
 	${PROJECT_SOURCE_DIR}/src/app/ps/registry.cpp
+	${PROJECT_SOURCE_DIR}/src/app/ps/persistent_storage_json.cpp
 	${PROJECT_SOURCE_DIR}/src/app/file_util.cpp
 	${PROJECT_SOURCE_DIR}/src/app/json.cpp
 	${PROJECT_SOURCE_DIR}/src/app/cli/console.cpp
