@@ -61,8 +61,8 @@ public:
     MOCK_METHOD(Error, SetChannel, (const Channel &, MilliSeconds));
     MOCK_METHOD(Error, GetChannelMask, (ChannelMask &), (const));
     MOCK_METHOD(Error, SetChannelMask, (const ChannelMask &));
-    MOCK_METHOD(Error, SetExtendedPanId, (const ByteArray &));
     MOCK_METHOD(Error, GetExtendedPanId, (ByteArray &), (const));
+    MOCK_METHOD(Error, SetExtendedPanId, (const ByteArray &));
     MOCK_METHOD(Error, GetMeshLocalPrefix, (std::string &));
     MOCK_METHOD(Error, SetMeshLocalPrefix, (const std::string &, MilliSeconds));
     MOCK_METHOD(Error, GetMeshLocalAddr, (std::string &, const std::string &, uint16_t));
@@ -70,8 +70,8 @@ public:
     MOCK_METHOD(Error, SetNetworkMasterKey, (const ByteArray &, MilliSeconds));
     MOCK_METHOD(Error, GetNetworkName, (std::string &), (const));
     MOCK_METHOD(Error, SetNetworkName, (const std::string &));
-    MOCK_METHOD(Error, SetPanId, (uint16_t, MilliSeconds));
     MOCK_METHOD(Error, GetPanId, (uint16_t &));
+    MOCK_METHOD(Error, SetPanId, (uint16_t, MilliSeconds));
     MOCK_METHOD(Error, GetPSKc, (ByteArray &), (const));
     MOCK_METHOD(Error, SetPSKc, (const ByteArray &));
     MOCK_METHOD(Error, GetSecurityPolicy, (SecurityPolicy &), (const));

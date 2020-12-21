@@ -56,6 +56,6 @@ TEST(InterpreterTestSuite, TestInit)
     std::shared_ptr<Interpreter> pInterpreter(new Interpreter());
     ASSERT_NE(pInterpreter, nullptr);
 
-    auto result = pInterpreter->Init(pInterpreter, "./config", "./persistent_storage");
+    auto result = pInterpreter->Init("./config", "./persistent_storage");
     ASSERT_EQ(result.mCode, ErrorCode::kNone);
 }

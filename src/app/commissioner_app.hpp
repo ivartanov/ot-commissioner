@@ -97,31 +97,32 @@ public:
     using MilliSeconds = std::chrono::milliseconds;
     using Seconds      = std::chrono::seconds;
 
-    static Error Create(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig);
     MOCKABLE ~CommissionerApp() = default;
 
     // Handle commissioner events.
-    std::string OnJoinerRequest(const ByteArray &aJoinerId) override;
+    MOCKABLE std::string OnJoinerRequest(const ByteArray &aJoinerId) override;
 
-    void OnJoinerConnected(const ByteArray &aJoinerId, Error aError) override;
+    MOCKABLE void OnJoinerConnected(const ByteArray &aJoinerId, Error aError) override;
 
-    bool OnJoinerFinalize(const ByteArray &  aJoinerId,
-                          const std::string &aVendorName,
-                          const std::string &aVendorModel,
-                          const std::string &aVendorSwVersion,
-                          const ByteArray &  aVendorStackVersion,
-                          const std::string &aProvisioningUrl,
-                          const ByteArray &  aVendorData) override;
+    MOCKABLE bool OnJoinerFinalize(const ByteArray &  aJoinerId,
+                                   const std::string &aVendorName,
+                                   const std::string &aVendorModel,
+                                   const std::string &aVendorSwVersion,
+                                   const ByteArray &  aVendorStackVersion,
+                                   const std::string &aProvisioningUrl,
+                                   const ByteArray &  aVendorData) override;
 
-    void OnKeepAliveResponse(Error aError) override;
+    MOCKABLE void OnKeepAliveResponse(Error aError) override;
 
-    void OnPanIdConflict(const std::string &aPeerAddr, const ChannelMask &aChannelMask, uint16_t aPanId) override;
+    MOCKABLE void OnPanIdConflict(const std::string &aPeerAddr,
+                                  const ChannelMask &aChannelMask,
+                                  uint16_t           aPanId) override;
 
-    void OnEnergyReport(const std::string &aPeerAddr,
-                        const ChannelMask &aChannelMask,
-                        const ByteArray &  aEnergyList) override;
+    MOCKABLE void OnEnergyReport(const std::string &aPeerAddr,
+                                 const ChannelMask &aChannelMask,
+                                 const ByteArray &  aEnergyList) override;
 
-    void OnDatasetChanged() override;
+    MOCKABLE void OnDatasetChanged() override;
 
     MOCKABLE Error Start(std::string &      aExistingCommissionerId,
                          const std::string &aBorderAgentAddr,
@@ -270,8 +271,12 @@ public:
     Error              GetPrimaryBbrAddr(std::string &aAddr);
 
 private:
+    friend Error CommissionerAppCreate(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig);
+
     CommissionerApp() = default;
     Error Init(const Config &aConfig);
+
+    static Error Create(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig);
 
     struct JoinerKey
     {
@@ -313,6 +318,8 @@ private:
     CommissionerDataset             mCommDataset;
     BbrDataset                      mBbrDataset;
 };
+
+Error CommissionerAppCreate(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig);
 
 } // namespace commissioner
 
