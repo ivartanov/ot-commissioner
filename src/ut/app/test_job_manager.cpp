@@ -22,25 +22,6 @@
 
 using namespace ot::commissioner;
 
-/**
- * The purpose of the object is to expect all calls to CommissionerApp::Create() calls.
- * If it is necessary, just expect its Create() method and take necessary actions
- */
-static CommissionerAppStaticExpecter gCommissionerAppStaticExpecter;
-
-namespace ot {
-namespace commissioner {
-
-Error CommissionerAppCreate(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig)
-{
-    return gCommissionerAppStaticExpecter.Create(aCommApp, aConfig);
-}
-
-} // namespace commissioner
-} // namespace ot
-
-using namespace ot::commissioner;
-
 using testing::_;
 using testing::DoAll;
 using testing::Invoke;
@@ -65,18 +46,22 @@ public:
             , mConf{}
             , mInterpreter{}
             , mJobManager{mInterpreter}
+            , mDefaultCommissioner{new CommissionerAppMock()}
         {
             mPS       = std::shared_ptr<PersistentStorageJson>(new PersistentStorageJson(""));
             mRegistry = std::shared_ptr<Registry>(new Registry(mPS.get()));
+            SetCommissionerAppStaticExpecter(&mCommissionerAppStaticExpecter);
         }
-        ~TestContext() = default;
+        ~TestContext() { ClearCommissionerAppStaticExpecter(); }
 
         std::shared_ptr<PersistentStorageJson> mPS;
         std::shared_ptr<Registry>              mRegistry;
 
-        Config      mConf;
-        Interpreter mInterpreter;
-        JobManager  mJobManager;
+        Config                               mConf;
+        Interpreter                          mInterpreter;
+        JobManager                           mJobManager;
+        std::shared_ptr<CommissionerAppMock> mDefaultCommissioner;
+        CommissionerAppStaticExpecter        mCommissionerAppStaticExpecter;
     };
 
     JobManagerTestSuite()
@@ -88,7 +73,10 @@ public:
     void SetInitialExpectations(TestContext &aContext)
     {
         ASSERT_TRUE(aContext.mPS);
-        EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _)).Times(1).WillOnce(Return(Error{}));
+        EXPECT_CALL(aContext.mCommissionerAppStaticExpecter, Create(_, _))
+            .Times(1)
+            .WillOnce(DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = aContext.mDefaultCommissioner; }),
+                            Return(Error{})));
 
         ASSERT_EQ(aContext.mPS->open(), ot::commissioner::persistent_storage::ps_status::PS_SUCCESS);
     }
@@ -108,7 +96,7 @@ TEST_F(JobManagerTestSuite, TestInit)
     Init(ctx, ".");
 }
 
-TEST_F(JobManagerTestSuite, DISABLED_StartStopSuccess)
+TEST_F(JobManagerTestSuite, StartStopSuccess)
 // Stop jobs fail
 {
     TestContext ctx;
@@ -159,7 +147,7 @@ TEST_F(JobManagerTestSuite, DISABLED_StartStopSuccess)
                                                       CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
 
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(3)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -194,6 +182,8 @@ TEST_F(JobManagerTestSuite, DISABLED_StartStopSuccess)
         }));
         EXPECT_CALL(*commissionerAppMocks[camIdx], IsActive()).WillOnce(Return(true));
     }
+    ctx.mJobManager.CleanupJobs();
+
     EXPECT_EQ(ctx.mJobManager.PrepareJobs({"stop"}, {0x1, 0x2, 0x3}, false).mCode, ErrorCode::kNone);
     ctx.mJobManager.RunJobs();
     for (camIdx = 0; camIdx < 3; ++camIdx)
@@ -255,7 +245,8 @@ TEST_F(JobManagerTestSuite, StartCancel)
                                                       CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
 
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    // TODO fix expectation leak
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(3)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -271,15 +262,13 @@ TEST_F(JobManagerTestSuite, StartCancel)
     }
     volatile bool wasThreadRunning = false;
     volatile bool shouldStop       = false;
-    EXPECT_CALL(*commissionerAppMocks[2], Start(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(Invoke([&]() {
-                            wasThreadRunning = true;
-                            while (!shouldStop)
-                            {
-                            };
-                        }),
-                        Return(Error{})));
+    EXPECT_CALL(*commissionerAppMocks[2], Start(_, _, _)).Times(1).WillOnce(Invoke([&]() {
+        wasThreadRunning = true;
+        while (!shouldStop)
+        {
+        };
+        return Error{};
+    }));
     EXPECT_CALL(*commissionerAppMocks[2], CancelRequests()).Times(1).WillOnce(Invoke([&]() { shouldStop = true; }));
 
     for (auto job : ctx.mJobManager.mJobPool)
@@ -296,7 +285,7 @@ TEST_F(JobManagerTestSuite, StartCancel)
 TEST_F(JobManagerTestSuite, DISABLED_MalformedCredentialsJobCreateFails)
 {
     // Remove './nwk' subtree
-    (void)system("rm -rf ./nwk");
+    ASSERT_EQ(system("rm -rf ./nwk"), 0);
 
     EXPECT_EQ(mkdir("./nwk", 0777), 0);
     EXPECT_EQ(mkdir("./nwk/0000000000000001", 0777), 0);
@@ -361,7 +350,7 @@ TEST_F(JobManagerTestSuite, DISABLED_MalformedCredentialsJobCreateFails)
                                                       CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
 
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(3)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -423,7 +412,7 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
                                                       CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
 
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(3)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -445,9 +434,9 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
     Interpreter::Value value = ctx.mJobManager.CollectJobsValue();
     nlohmann::json     json  = nlohmann::json::parse(value.ToString());
 
-    EXPECT_TRUE(json.contains(xpan_id{1}));
-    EXPECT_TRUE(json.contains(xpan_id{2}));
-    EXPECT_FALSE(json.contains(xpan_id{3}));
+    EXPECT_TRUE(json.contains(xpan_id{1}.str()));
+    EXPECT_TRUE(json.contains(xpan_id{2}.str()));
+    EXPECT_FALSE(json.contains(xpan_id{3}.str()));
     ctx.mJobManager.CleanupJobs();
 
     // "active" command
@@ -455,10 +444,10 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
     ctx.mJobManager.RunJobs();
     value = ctx.mJobManager.CollectJobsValue();
     json  = nlohmann::json::parse(value.ToString());
-    EXPECT_TRUE(json.contains(xpan_id{1}));
-    EXPECT_TRUE(json.contains(xpan_id{2}));
+    EXPECT_TRUE(json.contains(xpan_id{1}.str()));
+    EXPECT_TRUE(json.contains(xpan_id{2}.str()));
     // TODO fix application logic to report inactive instead of error, then re-enable
-    EXPECT_TRUE(json.contains(xpan_id{3}));
+    EXPECT_TRUE(json.contains(xpan_id{3}.str()));
     EXPECT_TRUE(json[xpan_id{1}.str()]);
     EXPECT_TRUE(json[xpan_id{2}.str()]);
     // TODO fix application logic to report inactive instead of error, then re-enable
@@ -474,8 +463,8 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
     ctx.mJobManager.RunJobs();
     value = ctx.mJobManager.CollectJobsValue();
     json  = nlohmann::json::parse(value.ToString());
-    EXPECT_TRUE(json.contains(xpan_id{1}));
-    EXPECT_TRUE(json.contains(xpan_id{2}));
+    EXPECT_TRUE(json.contains(xpan_id{1}.str()));
+    EXPECT_TRUE(json.contains(xpan_id{2}.str()));
     EXPECT_EQ(json[xpan_id{1}.str()], 0);
     EXPECT_EQ(json[xpan_id{2}.str()], 1);
     ctx.mJobManager.CleanupJobs();
@@ -497,8 +486,8 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
     ctx.mJobManager.RunJobs();
     value = ctx.mJobManager.CollectJobsValue();
     json  = nlohmann::json::parse(value.ToString());
-    EXPECT_TRUE(json.contains(xpan_id{1}));
-    EXPECT_TRUE(json.contains(xpan_id{2}));
+    EXPECT_TRUE(json.contains(xpan_id{1}.str()));
+    EXPECT_TRUE(json.contains(xpan_id{2}.str()));
     EXPECT_TRUE(json[xpan_id{1}.str()].contains("PanId"));
     EXPECT_TRUE(json[xpan_id{2}.str()].contains("PanId"));
     EXPECT_EQ(json[xpan_id{1}.str()]["PanId"], 1);
@@ -516,8 +505,8 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
     ctx.mJobManager.RunJobs();
     value = ctx.mJobManager.CollectJobsValue();
     json  = nlohmann::json::parse(value.ToString());
-    EXPECT_TRUE(json.contains(xpan_id{1}));
-    EXPECT_TRUE(json.contains(xpan_id{2}));
+    EXPECT_TRUE(json.contains(xpan_id{1}.str()));
+    EXPECT_TRUE(json.contains(xpan_id{2}.str()));
     EXPECT_TRUE(json[xpan_id{1}.str()]);
     EXPECT_TRUE(json[xpan_id{2}.str()]);
     ctx.mJobManager.CleanupJobs();
@@ -529,8 +518,8 @@ TEST_F(JobManagerTestSuite, DISABLED_BuildFinalResultString)
     ctx.mJobManager.RunJobs();
     value = ctx.mJobManager.CollectJobsValue();
     json  = nlohmann::json::parse(value.ToString());
-    EXPECT_TRUE(json.contains(xpan_id{1}));
-    EXPECT_TRUE(json.contains(xpan_id{2}));
+    EXPECT_TRUE(json.contains(xpan_id{1}.str()));
+    EXPECT_TRUE(json.contains(xpan_id{2}.str()));
     EXPECT_TRUE(json[xpan_id{1}.str()]);
     EXPECT_TRUE(json[xpan_id{2}.str()]);
     ctx.mJobManager.CleanupJobs();

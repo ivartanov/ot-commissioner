@@ -105,8 +105,8 @@ private:
         std::string mData;
     };
 
-    using Evaluator      = std::function<Value(Interpreter *, const Expression &)>;
-    using JobEvaluator   = std::function<Value(Interpreter *, CommissionerAppPtr &, const Expression &)>;
+    using Evaluator    = std::function<Value(Interpreter *, const Expression &)>;
+    using JobEvaluator = std::function<Value(Interpreter *, CommissionerAppPtr &, const Expression &)>;
 
     /**
      * Multi-network command context.
