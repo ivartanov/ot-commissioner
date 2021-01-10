@@ -84,7 +84,7 @@ public:
      * - if instance not found, it is created and added to the pool
      * - if no network selected, default commissioner is returned
      */
-    MOCKABLE Error GetSelectedCommissioner(CommissionerAppPtr &aCommissioner);
+    Error GetSelectedCommissioner(CommissionerAppPtr &aCommissioner);
     /**
      * Asserts if the execution context is blank and ready for the next run.
      */

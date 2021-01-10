@@ -102,19 +102,14 @@ public:
     MOCK_METHOD(const EnergyReportMap &, GetAllEnergyReports, (), (const));
 };
 
-class CommissionerAppStaticExpecterInterface
+class CommissionerAppStaticExpecter
 {
 public:
-    virtual Error Create(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig) = 0;
-
-    virtual ~CommissionerAppStaticExpecterInterface() = default;
-};
-
-class CommissionerAppStaticExpecter : public CommissionerAppStaticExpecterInterface
-{
-public:
-    MOCK_METHOD(Error, Create, (std::shared_ptr<CommissionerApp> & aCommApp, const Config &aConfig), (override));
+    MOCK_METHOD(Error, Create, (std::shared_ptr<CommissionerApp> & aCommApp, const Config &aConfig));
     virtual ~CommissionerAppStaticExpecter() = default;
 };
+
+void SetCommissionerAppStaticExpecter(CommissionerAppStaticExpecter *ptr);
+void ClearCommissionerAppStaticExpecter();
 
 #endif // OT_COMM_APP_COMMISSIONER_APP_MOCK_HPP_

@@ -2,7 +2,7 @@
  * TODO Put copyright here
  */
 /**
- * @file Job manager unit tests
+ * @file Interpreter unit tests
  */
 
 #include "gmock/gmock.h"
@@ -16,23 +16,6 @@
 #include "app/ps/persistent_storage_json.hpp"
 #include "app/ps/registry.hpp"
 #include "app/ps/registry_entries.hpp"
-
-/**
- * The purpose of the object is to expect all calls to CommissionerApp::Create() calls.
- * If it is necessary, just expect its Create() method and take necessary actions
- */
-static CommissionerAppStaticExpecter gCommissionerAppStaticExpecter;
-
-namespace ot {
-namespace commissioner {
-
-Error CommissionerAppCreate(std::shared_ptr<CommissionerApp> &aCommApp, const Config &aConfig)
-{
-    return gCommissionerAppStaticExpecter.Create(aCommApp, aConfig);
-}
-
-} // namespace commissioner
-} // namespace ot
 
 using namespace ot::commissioner;
 using namespace ot::commissioner::persistent_storage;
@@ -58,9 +41,13 @@ public:
 
     struct TestContext
     {
-        Interpreter            mInterpreter;
-        Registry *             mRegistry = nullptr;
-        CommissionerAppMockPtr mDefaultCommissionerObject{new CommissionerAppMock()};
+        TestContext() { SetCommissionerAppStaticExpecter(&mCommissionerAppStaticExpecter); }
+        ~TestContext() { ClearCommissionerAppStaticExpecter(); }
+
+        Interpreter                   mInterpreter;
+        Registry *                    mRegistry = nullptr;
+        CommissionerAppMockPtr        mDefaultCommissionerObject{new CommissionerAppMock()};
+        CommissionerAppStaticExpecter mCommissionerAppStaticExpecter;
     };
 
     void InitContext(TestContext &ctx)
@@ -72,7 +59,7 @@ public:
 
         ASSERT_NE(ctx.mDefaultCommissionerObject, nullptr);
 
-        EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+        EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
             .WillOnce(
                 DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = ctx.mDefaultCommissionerObject; }),
                       Return(Error{})));
@@ -86,8 +73,8 @@ public:
 
 TEST_F(InterpreterTestSuite, TestInit)
 {
-  TestContext ctx;
-  InitContext(ctx);
+    TestContext ctx;
+    InitContext(ctx);
 }
 
 // Multi-network syntax validation (MNSV) test group
@@ -496,7 +483,7 @@ TEST_F(InterpreterTestSuite, IESV_SingleImportFileMustPass)
               registry_status::REG_SUCCESS);
 
     CommissionerAppMockPtr commissionerAppMock{new CommissionerAppMock()};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .WillOnce(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMock; }), Return(Error{})));
     EXPECT_CALL(*commissionerAppMock, Start(_, _, _)).WillOnce(Return(Error{}));
@@ -579,7 +566,7 @@ TEST_F(InterpreterTestSuite, IESV_NoImportFileMustFail)
               registry_status::REG_SUCCESS);
 
     CommissionerAppMockPtr commissionerAppMock{new CommissionerAppMock()};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .WillOnce(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMock; }), Return(Error{})));
     EXPECT_CALL(*commissionerAppMock, Start(_, _, _)).WillOnce(Return(Error{}));
@@ -637,7 +624,7 @@ TEST_F(InterpreterTestSuite, CMNO_MultipleSuccessfullJobsPass)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -668,7 +655,7 @@ TEST_F(InterpreterTestSuite, CMNO_UnsuccessfullResultFromAJobMustNotFail)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -702,7 +689,7 @@ TEST_F(InterpreterTestSuite, PC_StartNetworkSyntaxSuccess)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -746,7 +733,7 @@ TEST_F(InterpreterTestSuite, PC_StartCurrentNetworkSuccess)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -787,7 +774,7 @@ TEST_F(InterpreterTestSuite, DISABLED_PC_StartLegacySyntaxSuccess)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -824,7 +811,7 @@ TEST_F(InterpreterTestSuite, DISABLED_PC_StartLegacySyntaxErrorFails)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -858,7 +845,7 @@ TEST_F(InterpreterTestSuite, PC_StopNetworkSyntaxSuccess)
     uint8_t                camIdx                  = 0;
     CommissionerAppMockPtr commissionerAppMocks[2] = {CommissionerAppMockPtr{new CommissionerAppMock()},
                                                       CommissionerAppMockPtr{new CommissionerAppMock()}};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .Times(2)
         .WillRepeatedly(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMocks[camIdx++]; }),
@@ -930,7 +917,7 @@ TEST_F(InterpreterTestSuite, DISABLED_PC_Active)
     ASSERT_EQ(ctx.mRegistry->set_current_network(br), registry_status::REG_SUCCESS);
 
     CommissionerAppMockPtr commissionerAppMock{new CommissionerAppMock()};
-    EXPECT_CALL(gCommissionerAppStaticExpecter, Create(_, _))
+    EXPECT_CALL(ctx.mCommissionerAppStaticExpecter, Create(_, _))
         .WillOnce(
             DoAll(WithArg<0>([&](std::shared_ptr<CommissionerApp> &a) { a = commissionerAppMock; }), Return(Error{})));
 
@@ -1750,7 +1737,7 @@ TEST_F(InterpreterTestSuite, DISABLED_PC_BrScanExportDirAbsent)
     Interpreter::Value      value;
 
     std::string jsonFileName = "./tmpdir/br-list.json";
-    system("rm -rf ./tmpdir");
+    ASSERT_EQ(system("rm -rf ./tmpdir"), 0);
     // TODO implementation pending
     expr  = ctx.mInterpreter.ParseExpression(std::string("br scan --export ") + jsonFileName);
     value = ctx.mInterpreter.Eval(expr);
