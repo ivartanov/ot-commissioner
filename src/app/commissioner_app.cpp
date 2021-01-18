@@ -504,13 +504,15 @@ exit:
 
 Error CommissionerApp::GetExtendedPanId(ByteArray &aExtendedPanId) const
 {
-    Error error;
+    Error       error;
+    std::string extendedPanIdString;
 
     VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
     VerifyOrExit(mActiveDataset.mPresentFlags & ActiveOperationalDataset::kExtendedPanIdBit,
                  error = ERROR_NOT_FOUND("cannot find valid Extended PAN ID in Active Operational Dataset"));
-    aExtendedPanId = mActiveDataset.mExtendedPanId;
+    extendedPanIdString = mActiveDataset.mExtendedPanId.str();
+    aExtendedPanId      = ByteArray(extendedPanIdString.begin(), extendedPanIdString.end());
 
 exit:
     return error;
@@ -523,7 +525,7 @@ Error CommissionerApp::SetExtendedPanId(const ByteArray &aExtendedPanId)
 
     VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("the commissioner is not active"));
 
-    activeDataset.mExtendedPanId = aExtendedPanId;
+    activeDataset.mExtendedPanId = std::string(aExtendedPanId.begin(), aExtendedPanId.end());
     activeDataset.mPresentFlags |= ActiveOperationalDataset::kExtendedPanIdBit;
 
     SuccessOrExit(error = mCommissioner->SetActiveDataset(activeDataset));
