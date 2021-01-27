@@ -663,7 +663,7 @@ exit:
     return error;
 }
 
-Error CommissionerApp::GetPanId(uint16_t &aPanId)
+Error CommissionerApp::GetPanId(PanId &aPanId)
 {
     Error error;
 
@@ -679,7 +679,7 @@ exit:
     return error;
 }
 
-Error CommissionerApp::SetPanId(uint16_t aPanId, MilliSeconds aDelay)
+Error CommissionerApp::SetPanId(PanId aPanId, MilliSeconds aDelay)
 {
     Error                     error;
     PendingOperationalDataset pendingDataset;
