@@ -365,7 +365,10 @@ static void to_json(Json &aJson, const ChannelMaskEntry &aChannelMaskEntry)
 #define SET(name) aJson[#name] = aChannelMaskEntry.m##name;
 
     SET(Page);
+    /** TODO fix #22
     SET(Masks);
+    */
+    aJson["Masks"] = utils::Hex(aChannelMaskEntry.mMasks);
 
 #undef SET
 }
@@ -375,7 +378,10 @@ static void from_json(const Json &aJson, ChannelMaskEntry &aChannelMaskEntry)
 #define SET(name) aJson.at(#name).get_to(aChannelMaskEntry.m##name);
 
     SET(Page);
+    /** TODO fix #22
     SET(Masks);
+    */
+    (void)utils::Hex(aChannelMaskEntry.mMasks, aJson.at("Masks").get<std::string>());
 
 #undef SET
 }
@@ -385,7 +391,10 @@ static void to_json(Json &aJson, const SecurityPolicy &aSecurityPolicy)
 #define SET(name) aJson[#name] = aSecurityPolicy.m##name;
 
     SET(RotationTime);
+    /** TODO fix #22
     SET(Flags);
+    */
+    aJson["Flags"] = utils::Hex(aSecurityPolicy.mFlags);
 
 #undef SET
 }
@@ -395,7 +404,10 @@ static void from_json(const Json &aJson, SecurityPolicy &aSecurityPolicy)
 #define SET(name) aJson.at(#name).get_to(aSecurityPolicy.m##name);
 
     SET(RotationTime);
+    /** TODO fix #22
     SET(Flags);
+    */
+    (void)utils::Hex(aSecurityPolicy.mFlags, aJson.at("Flags").get<std::string>());
 
 #undef SET
 }
@@ -430,10 +442,24 @@ static void to_json(Json &aJson, const ActiveOperationalDataset &aDataset)
         aJson["MeshLocalPrefix"] = Ipv6PrefixToString(aDataset.mMeshLocalPrefix);
     };
 
+    /* TODO Find out why adl_serializer is ineffective
+       Issue #22
     SET_IF_PRESENT(NetworkMasterKey);
+    */
+    if (aDataset.mPresentFlags & ActiveOperationalDataset::kNetworkMasterKeyBit)
+    {
+        aJson["NetworkMasterKey"] = utils::Hex(aDataset.mNetworkMasterKey);
+    }
     SET_IF_PRESENT(NetworkName);
     SET_IF_PRESENT(PanId);
+    /* TODO Find out why adl_serializer is ineffective
+       Issue #22
     SET_IF_PRESENT(PSKc);
+    */
+    if (aDataset.mPresentFlags & ActiveOperationalDataset::kPSKcBit)
+    {
+        aJson["PSKc"] = utils::Hex(aDataset.mPSKc);
+    }
     SET_IF_PRESENT(SecurityPolicy);
 
 #undef SET_IF_PRESENT
@@ -466,14 +492,25 @@ static void from_json(const Json &aJson, ActiveOperationalDataset &aDataset)
         aDataset.mPresentFlags |= ActiveOperationalDataset::kMeshLocalPrefixBit;
     };
 
+    /* TODO Find out why it is broken
+       Issue #22
     SET_IF_PRESENT(NetworkMasterKey);
+    */
+    if (aJson.contains("NetworkMasterKey"))
+    {
+        (void)utils::Hex(aDataset.mNetworkMasterKey, aJson["NetworkMasterKey"]);
+        aDataset.mPresentFlags |= ActiveOperationalDataset::kNetworkMasterKeyBit;
+    }
+
     SET_IF_PRESENT(NetworkName);
     SET_IF_PRESENT(PanId);
     // TODO [MP] Find out why it was broken
+    // Issue #22
     // SET_IF_PRESENT(PSKc);
     if (aJson.contains("PSKc"))
     {
         (void)utils::Hex(aDataset.mPSKc, aJson["PSKc"]);
+        aDataset.mPresentFlags |= ActiveOperationalDataset::kPSKcBit;
     }
 
     SET_IF_PRESENT(SecurityPolicy);
